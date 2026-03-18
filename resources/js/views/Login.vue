@@ -82,14 +82,14 @@
                     </div>
 
                   <!-- Auto-Login Quick Buttons -->
-                  <!-- <div class="mt-4 text-center">
+                  <div class="mt-4 text-center">
                     <p class="small mb-2" style="color: purple;">Quick Auto-Login</p>
                     <div class="d-grid gap-2">
-                      <button type="button" class="btn btn-outline-success rounded-pill" @click="autoLogin('office')">Office</button>
-                      <button type="button" class="btn btn-outline-info rounded-pill" @click="autoLogin('farm')">Farm</button>
-                      <button type="button" class="btn btn-outline-warning rounded-pill" @click="autoLogin('personal')">Personal</button>
+                      <button type="button" class="btn btn-outline-success rounded-pill" @click="autoLogin('landlord')">Landlord</button>
+                      <button type="button" class="btn btn-outline-info rounded-pill" @click="autoLogin('manager')">Manager</button>
+                      <button type="button" class="btn btn-outline-warning rounded-pill" @click="autoLogin('tenant')">Tenant</button>
                     </div>
-                  </div> -->
+                  </div>
 
 
                     <div class="col-12">
@@ -190,7 +190,7 @@ export default {
         })
 
         // Redirect to dashboard
-        this.$router.push('/login2')
+        this.$router.push('/home')
         } else {
         Swal.fire({
             title: 'Oops!',
@@ -209,16 +209,16 @@ export default {
     },
     autoLogin(role) {
       const presets = {
-        office: {
-          email: "office@algospace.co.ke",
+        landlord: {
+          email: "landlord@redrms.co.ke",
           password: "password123"
         },
-        farm: {
-          email: "farm@algospace.co.ke",
+        manager: {
+          email: "manager@redrms.co.ke",
           password: "password123"
         },        
-        personal: {
-          email: "personal@algospace.co.ke",
+        tenant: {
+          email: "tenant@redrms.co.ke",
           password: "password123"
         }        
       };

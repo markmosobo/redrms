@@ -2,7 +2,7 @@
     <!-- ======= Footer ======= -->
     <footer id="footer" class="footer">
       <div class="copyright">
-        &copy; Copyright <strong><span style="color: darkgreen;"> AlgoSpace Cyber {{currentYear}}</span></strong>. All Rights Reserved
+        &copy; Copyright <strong><span style="color: darkgreen;"> Rent Deposit and Refund Management System {{currentYear}}</span></strong>. All Rights Reserved
       </div>
       <div class="credits">
         <!-- All the links in the footer should remain intact. -->

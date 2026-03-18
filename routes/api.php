@@ -11,8 +11,12 @@ use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\DeductionController;
 use App\Http\Controllers\RefundController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\AuthController;
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/login', [AuthController::class, 'login'])->name('login');
+
+Route::middleware('auth:api')->group(function () {
 
     // Current logged-in user info
     Route::get('/user', function (Request $request) {
