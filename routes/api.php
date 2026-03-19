@@ -23,6 +23,10 @@ Route::middleware('auth:api')->group(function () {
         return $request->user();
     });
 
+    Route::get('/landlords', [UserController::class, 'landlords']);
+    Route::get('/managers', [UserController::class, 'managers']);
+    Route::get('/tenants', [UserController::class, 'tenants']);
+
     // Users
     Route::apiResource('users', UserController::class);
 

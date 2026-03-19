@@ -252,7 +252,7 @@ main {
 
 /* Full background image */
 .background-image {
-  background-image: url('@/assets/img/cyber.jpg');
+  background-image: url('@/assets/img/real-estate.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

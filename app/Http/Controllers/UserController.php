@@ -16,6 +16,24 @@ class UserController extends Controller
         $users = User::get();
         return response()->json($users);
     }
+    
+    public function landlords()
+    {
+        $users = User::where('role', 'landlord')->get();
+        return response()->json($users);
+    }
+    
+    public function managers()
+    {
+        $users = User::where('role', 'manager')->get();
+        return response()->json($users);
+    } 
+    
+    public function tenants()
+    {
+        $users = User::where('role', 'tenant')->get();
+        return response()->json($users);
+    }     
 
     /**
      * Store a newly created resource in storage.
