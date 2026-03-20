@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Property;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PropertyController extends Controller
@@ -12,8 +13,17 @@ class PropertyController extends Controller
      */
     public function index()
     {
+        // Fetch all properties with their related landlord
         $properties = Property::with('landlord')->get();
-        return response()->json($properties);
+
+        // Fetch all landlords (assuming you have a Landlord model)
+        $landlords = User::where('role','landlord')->get();  
+
+        // Return both in a single JSON response
+        return response()->json([
+            'properties' => $properties,
+            'landlords' => $landlords,
+        ]);
     }
 
     /**
