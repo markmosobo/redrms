@@ -25,17 +25,17 @@ class InspectionController extends Controller
             'tenancy_id'      => 'required|exists:tenancies,id',
             'inspection_date' => 'required|date',
             'notes'           => 'nullable|string',
-            'created_by'      => 'required|exists:users,id',
             'inspection_type' => 'required|in:move_in,move_out',
         ]);
 
-        $inspection = Inspection::create($request->only([
-            'tenancy_id',
-            'inspection_date',
-            'notes',
-            'created_by',
-            'inspection_type'
-        ]));
+        // Create inspection, automatically set created_by as current user
+        $inspection = Inspection::create([
+            'tenancy_id'      => $request->tenancy_id,
+            'inspection_date' => $request->inspection_date,
+            'notes'           => $request->notes,
+            'inspection_type' => $request->inspection_type,
+            'created_by'      => auth()->id(), // current user
+        ]);
 
         return response()->json([
             'message' => 'Inspection created successfully',

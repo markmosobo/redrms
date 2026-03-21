@@ -55,10 +55,14 @@ Route::middleware('auth:api')->group(function () {
     Route::apiResource('inspections', InspectionController::class);
 
     // Deductions
+    Route::post('/deductions/{deduction}/approve', [DeductionController::class, 'approve']);    
     Route::apiResource('deductions', DeductionController::class);
 
-    // Refunds
-    Route::apiResource('refunds', RefundController::class);
+    // List refundable deposits (GET)
+    Route::get('/deposits/refundable', [RefundController::class, 'refundableDeposits']);
+
+    // Finalize a refund (POST) - deposit ID required
+    Route::post('/deposits/{deposit}/finalize-refund', [RefundController::class, 'finalizeDepositFromDeposit']);
 
     // Audit Logs
     Route::apiResource('audit-logs', AuditLogController::class);

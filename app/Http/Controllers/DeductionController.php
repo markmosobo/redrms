@@ -12,7 +12,13 @@ class DeductionController extends Controller
      */
     public function index()
     {
-        $deductions = Deduction::with(['deposit.tenancy.tenant', 'inspection', 'approver'])->get();
+        $deductions = Deduction::with([
+            'deposit.tenancy.tenant',
+            'deposit.tenancy.unit.property',
+            'inspection',
+            'approver'
+        ])->get();
+
         return response()->json($deductions);
     }
 
@@ -93,4 +99,18 @@ class DeductionController extends Controller
             'message' => 'Deduction deleted successfully'
         ]);
     }
+
+    public function approve(Deduction $deduction)
+    {
+        $deduction->update([
+            'approved_by' => auth()->id(),
+            'approved_at' => now(),
+        ]);
+
+        return response()->json([
+            'approved_by' => $deduction->approved_by,
+            'approved_at' => $deduction->approved_at,
+            'approver'    => $deduction->approver,
+        ]);
+    }    
 }

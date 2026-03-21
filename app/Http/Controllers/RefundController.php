@@ -2,97 +2,68 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Refund;
 use Illuminate\Http\Request;
+use App\Models\Deposit;
 
 class RefundController extends Controller
 {
     /**
-     * List all refunds
+     * List refundable deposits
      */
-    public function index()
+    public function refundableDeposits()
     {
-        $refunds = Refund::with(['deposit.tenancy.tenant', 'approver'])->get();
-        return response()->json($refunds);
+        // Only 'held' deposits are refundable
+        $deposits = Deposit::with([
+            'tenancy.tenant',
+            'tenancy.unit.property',
+            'deductions' => function ($q) {
+                $q->whereNotNull('approved_at'); // Only approved deductions
+            }
+        ])->where('status', 'held')->get();
+
+        // Map data for front-end
+        $data = $deposits->map(function ($deposit) {
+            $totalDeductions = $deposit->deductions->sum('amount');
+
+            return [
+                'id' => $deposit->id,
+                'amount_received' => $deposit->amount_received,
+                'status' => $deposit->status,
+                'total_deductions' => $totalDeductions,
+                'deductions' => $deposit->deductions,
+                'tenancy' => $deposit->tenancy,
+            ];
+        });
+
+        return response()->json($data);
     }
 
     /**
-     * Store a new refund
+     * Finalize a refund for a specific deposit
      */
-    public function store(Request $request)
+    public function finalizeDepositFromDeposit(Deposit $deposit)
     {
-        $request->validate([
-            'deposit_id'       => 'required|exists:deposits,id',
-            'refundable_amount'=> 'required|numeric',
-            'refund_date'      => 'required|date',
-            'approval_status'  => 'nullable|in:pending,approved,rejected',
-            'approved_by'      => 'nullable|exists:users,id',
-            'approved_at'      => 'nullable|date',
-        ]);
+        // Only 'held' deposits can be finalized
+        if ($deposit->status !== 'held') {
+            return response()->json([
+                'message' => 'Deposit is not held and cannot be refunded'
+            ], 400);
+        }
 
-        $refund = Refund::create($request->only([
-            'deposit_id',
-            'refundable_amount',
-            'refund_date',
-            'approval_status',
-            'approved_by',
-            'approved_at',
-        ]));
+        // Calculate total approved deductions
+        $totalDeductions = $deposit->deductions()->whereNotNull('approved_at')->sum('amount');
+
+        // Refund amount
+        $refundAmount = $deposit->amount_received - $totalDeductions;
+
+        // Mark deposit as refunded
+        $deposit->status = 'refunded';
+        $deposit->save();
 
         return response()->json([
-            'message' => 'Refund created successfully',
-            'data'    => $refund,
-        ], 201);
-    }
-
-    /**
-     * Show a specific refund
-     */
-    public function show(string $id)
-    {
-        $refund = Refund::with(['deposit.tenancy.tenant', 'approver'])->findOrFail($id);
-        return response()->json($refund);
-    }
-
-    /**
-     * Update a refund
-     */
-    public function update(Request $request, string $id)
-    {
-        $refund = Refund::findOrFail($id);
-
-        $request->validate([
-            'refundable_amount'=> 'sometimes|numeric',
-            'refund_date'      => 'nullable|date',
-            'approval_status'  => 'nullable|in:pending,approved,rejected',
-            'approved_by'      => 'nullable|exists:users,id',
-            'approved_at'      => 'nullable|date',
-        ]);
-
-        $refund->update($request->only([
-            'refundable_amount',
-            'refund_date',
-            'approval_status',
-            'approved_by',
-            'approved_at',
-        ]));
-
-        return response()->json([
-            'message' => 'Refund updated successfully',
-            'data'    => $refund,
-        ]);
-    }
-
-    /**
-     * Delete a refund
-     */
-    public function destroy(string $id)
-    {
-        $refund = Refund::findOrFail($id);
-        $refund->delete();
-
-        return response()->json([
-            'message' => 'Refund deleted successfully'
+            'message' => 'Refund finalized successfully',
+            'deposit_id' => $deposit->id,
+            'refund_amount' => $refundAmount,
         ]);
     }
 }

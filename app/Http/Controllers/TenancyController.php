@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Deposit;
 use App\Models\Tenancy;
 use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TenancyController extends Controller
 {
@@ -21,6 +23,7 @@ class TenancyController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+
     public function store(Request $request)
     {
         $request->validate([
@@ -40,23 +43,35 @@ class TenancyController extends Controller
             return response()->json(['message' => 'Selected unit is not vacant'], 422);
         }
 
-        if ($unit->status === 'occupied') {
-            return response()->json([
-                'message' => 'Unit is already occupied'
-            ], 422);
-        }
+        // Run everything in a transaction
+        DB::transaction(function () use ($request, $unit, &$tenancy) {
+            // Create tenancy
+            $tenancy = Tenancy::create([
+                'tenant_id'      => $request->tenant_id,
+                'unit_id'        => $request->unit_id,
+                'start_date'     => $request->start_date,
+                'end_date'       => $request->end_date,
+                'deposit_amount' => $request->deposit_amount,
+                'status'         => 'active',
+            ]);
 
-        $tenancy = Tenancy::create([
-            'tenant_id'      => $request->tenant_id,
-            'unit_id'        => $request->unit_id,
-            'start_date'     => $request->start_date,
-            'end_date'       => $request->end_date,
-            'deposit_amount' => $request->deposit_amount,
-            'status'         => 'active',
-        ]);
+            // Create initial deposit record
+            Deposit::create([
+                'tenancy_id'     => $tenancy->id,
+                'amount_received'=> $request->deposit_amount,
+                'received_date'  => now(),
+                'status'         => 'held'
+            ]);
 
-        // Mark unit as occupied
-        $unit->update(['status' => 'occupied']);
+            // Mark unit as occupied
+            $unit->update(['status' => 'occupied']);
+
+            // Activate tenant
+            $tenant = User::find($request->tenant_id);
+            if ($tenant) {
+                $tenant->update(['status' => 'active']);
+            }
+        });
 
         return response()->json([
             'message' => 'Tenancy created successfully',

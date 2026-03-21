@@ -83,4 +83,55 @@ class DepositController extends Controller
             'message' => 'Deposit deleted successfully'
         ]);
     }
+
+    public function finalizeDeposit($depositId)
+    {
+        return DB::transaction(function () use ($depositId) {
+
+            $deposit = Deposit::with([
+                'deductions',
+                'refund'
+            ])->lockForUpdate()->findOrFail($depositId);
+
+            // ❌ Prevent double finalization
+            if ($deposit->refund) {
+                abort(400, 'Deposit already finalized');
+            }
+
+            // ❌ Ensure all deductions are approved
+            if ($deposit->deductions()->whereNull('approved_at')->exists()) {
+                abort(400, 'All deductions must be approved before finalizing');
+            }
+
+            $totalDeductions = $deposit->deductions()->sum('amount');
+
+            $refundableAmount = max(
+                $deposit->amount_received - $totalDeductions,
+                0
+            );
+
+            // ✅ Create refund
+            $refund = Refund::create([
+                'deposit_id'        => $deposit->id,
+                'refundable_amount' => $refundableAmount,
+                'refund_date'       => now(),
+                'approval_status'   => 'pending',
+            ]);
+
+            // ✅ Update deposit status
+            $deposit->update([
+                'status' => $refundableAmount > 0
+                    ? 'partially_deducted'
+                    : 'refunded',
+            ]);
+
+            return response()->json([
+                'deposit_id'        => $deposit->id,
+                'deposit_amount'    => $deposit->amount_received,
+                'total_deductions'  => $totalDeductions,
+                'refundable_amount' => $refundableAmount,
+                'refund'            => $refund,
+            ]);
+        });
+    }      
 }
