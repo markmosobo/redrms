@@ -24,6 +24,8 @@ Route::middleware('auth:api')->group(function () {
     });
 
     Route::get('/landlords', [UserController::class, 'landlords']);
+    Route::get('/landlords/{landlord}/properties', [PropertyController::class, 'landlordProperties']);
+    Route::post('/landlords/{landlord}/properties', [PropertyController::class, 'storeProperty']);    
     Route::get('/managers', [UserController::class, 'managers']);
     Route::get('/tenants', [UserController::class, 'tenants']);
 
@@ -32,12 +34,19 @@ Route::middleware('auth:api')->group(function () {
 
     // Properties
     Route::apiResource('properties', PropertyController::class);
+    Route::get('/properties/{property}/units', [UnitController::class, 'unitsByProperty']);
+    Route::post('/properties/{property}/units', [UnitController::class, 'storeUnit']);
 
     // Units
+    Route::get('/units/vacant', [UnitController::class, 'vacant']);
+    Route::get('/units/{unit}/tenancy', [TenancyController::class, 'showTenancy']);
+    Route::post('/units/{unit}/tenancy', [TenancyController::class, 'storeTenancy']);
     Route::apiResource('units', UnitController::class);
 
     // Tenancies
     Route::apiResource('tenancies', TenancyController::class);
+    Route::put('/tenancies/{tenancy}', [TenancyController::class, 'updateTenancy']);
+    Route::post('/tenancies/{tenancy}/terminate', [TenancyController::class, 'terminate']);
 
     // Deposits
     Route::apiResource('deposits', DepositController::class);

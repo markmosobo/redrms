@@ -110,6 +110,9 @@
                             <a @click="editProperty(property)" class="dropdown-item" href="#">
                                 <i class="ri-pencil-fill mr-2"></i> Edit
                             </a>
+                            <a @click="manageUnits(property)" class="dropdown-item">
+                                <i class="ri-building-fill mr-2"></i> Units
+                            </a>
                             <a @click="deleteProperty(property.id)" class="dropdown-item" href="#">
                                 <i class="ri-delete-bin-line mr-2"></i> Delete
                             </a>
@@ -311,7 +314,125 @@
                 </div>
                 </div>
 
+                <!-- Manage Units Modal -->
+                <div
+                class="modal fade"
+                id="manageUnitsModal"
+                tabindex="-1"
+                aria-labelledby="manageUnitsModalLabel"
+                aria-hidden="true"
+                >
+                <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
 
+                    <!-- Header -->
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                        Units — {{ selectedProperty?.property_name }}
+                        </h5>
+                        <button class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="modal-body">
+
+                        <!-- Add Unit Form -->
+                        <div class="card mb-3">
+                        <div class="card-header fw-bold">Add Unit</div>
+                        <div class="card-body row g-3">
+
+                            <div class="col-md-3">
+                            <input
+                                v-model="unitForm.unit_number"
+                                class="form-control"
+                                placeholder="Unit No"
+                            >
+                            </div>
+
+                            <div class="col-md-3">
+                            <input
+                                v-model="unitForm.unit_type"
+                                class="form-control"
+                                placeholder="Type"
+                            >
+                            </div>
+
+                            <div class="col-md-3">
+                            <input
+                                v-model="unitForm.rent_amount"
+                                type="number"
+                                class="form-control"
+                                placeholder="Rent"
+                            >
+                            </div>
+
+                            <div class="col-md-3 d-grid">
+                            <button
+                                class="btn btn-success"
+                                @click="saveUnit"
+                            >
+                                Add Unit
+                            </button>
+                            </div>
+
+                        </div>
+                        </div>
+
+                        <!-- Units Table -->
+                        <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                            <th>Unit No</th>
+                            <th>Type</th>
+                            <th>Rent</th>
+                            <th>Status</th>
+                            <th width="120">Actions</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr v-if="units.length === 0">
+                            <td colspan="5" class="text-center text-muted">
+                                No units added yet
+                            </td>
+                            </tr>
+
+                            <tr v-for="unit in units" :key="unit.id">
+                            <td>{{ unit.unit_number }}</td>
+                            <td>{{ unit.unit_type }}</td>
+                            <td>KES {{ unit.rent_amount }}</td>
+                            <td>
+                                <span
+                                class="badge"
+                                :class="unit.status === 'vacant' ? 'bg-success' : 'bg-danger'"
+                                >
+                                {{ unit.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <button
+                                class="btn btn-sm btn-outline-danger"
+                                @click="deleteUnit(unit)"
+                                >
+                                Delete
+                                </button>
+                            </td>
+                            </tr>
+                        </tbody>
+                        </table>
+
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                        Close
+                        </button>
+                    </div>
+
+                    </div>
+                </div>
+                </div>
                     
 
             </div>
@@ -342,12 +463,17 @@
       data() {
         return {
             properties: [],
+            units: [],
             landlords: [],
             selectedProperty: {},
             errors: {},
+            unitForm: {
+            unit_number: '',
+            unit_type: '',
+            rent_amount: ''
+            },
             initializing: true,
             submitting: false,
-            showLoyaltyCardModal: false,
 
             data: {
                 id: null,
@@ -357,18 +483,52 @@
                 description: ''
             },
 
-            form: {        // EDIT landlord
-              id: null,
-              full_name: '',
-              email: '',
-              phone: '',
-              status: '',
-              role: 'landlord',
-              password: ''
-            }
         }
       },      
       methods: { 
+        manageUnits(property) {
+            this.selectedProperty = property
+            this.units = []
+            this.resetUnitForm()
+            this.fetchUnits(property.id)
+
+            const modal = new bootstrap.Modal(
+            document.getElementById('manageUnitsModal')
+            )
+            modal.show()
+        },
+
+        fetchUnits(propertyId) {
+            axios.get(`/api/properties/${propertyId}/units`)
+            .then(res => this.units = res.data)
+        },
+
+        saveUnit() {
+            axios.post(
+            `/api/properties/${this.selectedProperty.id}/units`,
+            this.unitForm
+            ).then(res => {
+            this.units.unshift(res.data)
+            this.resetUnitForm()
+            })
+        },
+
+        deleteUnit(unit) {
+            if (!confirm('Delete this unit?')) return
+
+            axios.delete(`/api/units/${unit.id}`)
+            .then(() => {
+                this.units = this.units.filter(u => u.id !== unit.id)
+            })
+        },
+
+        resetUnitForm() {
+            this.unitForm = {
+            unit_number: '',
+            unit_type: '',
+            rent_amount: ''
+            }
+        },
         formatDate(date) {
           if (!date) return '—';
 

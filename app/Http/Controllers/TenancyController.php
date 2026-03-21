@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Tenancy;
 use App\Models\Unit;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class TenancyController extends Controller
@@ -31,7 +32,14 @@ class TenancyController extends Controller
         ]);
 
         // Ensure unit is vacant
-        $unit = Unit::findOrFail($request->unit_id);
+        $unit = Unit::where('id', $request->unit_id)
+            ->where('status', 'vacant')
+            ->first();
+
+        if (!$unit) {
+            return response()->json(['message' => 'Selected unit is not vacant'], 422);
+        }
+
         if ($unit->status === 'occupied') {
             return response()->json([
                 'message' => 'Unit is already occupied'
@@ -125,4 +133,58 @@ class TenancyController extends Controller
 
         return response()->json($tenancy);
     }
+
+    public function showTenancy(Unit $unit)
+    {
+        return $unit->activeTenancy()->with('tenant')->first();
+    }
+
+    public function storeTenancy(Request $request, Unit $unit)
+    {
+        // Ensure unit has no active tenancy
+        if ($unit->activeTenancy) {
+            return response()->json([
+                'message' => 'Unit already has an active tenancy'
+            ], 422);
+        }
+
+        $tenancy = Tenancy::create([
+            'tenant_id' => $request->tenant_id,
+            'unit_id' => $unit->id,
+            'start_date' => $request->start_date,
+            'deposit_amount' => $request->deposit_amount,
+            'status' => 'active'
+        ]);
+
+        // Mark unit occupied
+        $unit->update(['status' => 'occupied']);      
+
+        return response()->json($tenancy, 201);
+    }
+
+    public function updateTenancy(Request $request, Tenancy $tenancy)
+    {
+        $tenancy->update(
+            $request->only([
+                'start_date',
+                'end_date',
+                'deposit_amount',
+                'status'
+            ])
+        );
+
+        return response()->json($tenancy);
+    }
+    
+    public function terminate(Tenancy $tenancy)
+    {
+        $tenancy->update([
+            'status' => 'terminated',
+            'end_date' => now()
+        ]);
+
+        $tenancy->unit->update(['status' => 'vacant']);
+
+        return response()->noContent();
+    }    
 }

@@ -99,4 +99,23 @@ class PropertyController extends Controller
             'message' => 'Property deleted successfully'
         ]);
     }
+
+    public function landlordProperties(User $landlord)
+    {
+        return $landlord->properties()
+        ->withCount('units')
+        ->latest()
+        ->get();
+    } 
+    
+    public function storeProperty(Request $request, User $landlord)
+    {
+        $property = $landlord->properties()->create([
+        'property_name' => $request->property_name,
+        'location' => $request->location,
+        'description' => $request->description
+        ]);
+
+        return response()->json($property, 201);
+    }  
 }

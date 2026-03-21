@@ -5,6 +5,7 @@ import Register from '../views/Register.vue';
 import Home from '../views/Home.vue';
 import Landlords from '../views/Landlords.vue';
 import Properties from '../views/Properties.vue';
+import Tenancies from '../views/Tenancies.vue';
 
 const routes = [
   // Public routes
@@ -14,6 +15,7 @@ const routes = [
   { path: '/home', name: 'home', component: Home, meta: { requiresAuth: true } },
   { path: '/landlords', name: 'landlords', component: Landlords, meta: { requiresAuth: true } },
   { path: '/properties', name: 'properties', component: Properties, meta: { requiresAuth: true } },
+  { path: '/tenancies', name: 'tenancies', component: Tenancies, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({

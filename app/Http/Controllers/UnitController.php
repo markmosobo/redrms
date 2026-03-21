@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Property;
 use App\Models\Unit;
 use Illuminate\Http\Request;
 
@@ -102,4 +103,22 @@ class UnitController extends Controller
         $units = Unit::where('property_id', $propertyId)->get();
         return response()->json($units);
     }
+
+    public function storeUnit(Request $request, Property $property)
+    {
+        $unit = $property->units()->create([
+        'unit_number' => $request->unit_number,
+        'unit_type' => $request->unit_type,
+        'rent_amount' => $request->rent_amount,
+        'status' => 'vacant'
+        ]);
+
+        return response()->json($unit, 201);
+    }
+
+    public function vacant()
+    {
+        $units = Unit::where('status', 'vacant')->with('property')->get(); 
+        return response()->json($units);
+    }    
 }

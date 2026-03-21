@@ -99,10 +99,22 @@
                                   <button id="btnGroupDrop1" type="button" style="background-color: darkgreen; border-color: darkgreen;" class="btn btn-sm btn-primary rounded-pill dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                   Action
                                   </button>
-                                  <div class="dropdown-menu" aria-labelledby="btnGroupDrop1" style="">
-                                  <a @click="viewLandlord(item)" class="dropdown-item" href="#"><i class="ri-eye-fill mr-2"></i>View</a> 
-                                  <a @click="editLandlord(item)" class="dropdown-item" href="#"><i class="ri-pencil-fill mr-2"></i>Edit</a>
-                                  <a @click="deleteLandlord(item.id)" class="dropdown-item" href="#"><i class="ri-delete-bin-line mr-2"></i>Delete</a>
+                                  <div class="dropdown-menu">
+                                    <a @click="viewLandlord(item)" class="dropdown-item">
+                                      <i class="ri-eye-fill mr-2"></i> View
+                                    </a>
+
+                                    <a @click="editLandlord(item)" class="dropdown-item">
+                                      <i class="ri-pencil-fill mr-2"></i> Edit
+                                    </a>
+
+                                    <a @click="manageProperties(item)" class="dropdown-item">
+                                      <i class="ri-building-2-fill mr-2"></i> Properties
+                                    </a>
+
+                                    <a @click="deleteLandlord(item.id)" class="dropdown-item">
+                                      <i class="ri-delete-bin-line mr-2"></i> Delete
+                                    </a>
                                   </div>
                               </div>
                             </td>
@@ -422,6 +434,115 @@
                   </div>
                 </div>
 
+          <!-- Manage Properties Modal -->
+          <div
+            class="modal fade"
+            id="managePropertiesModal"
+            tabindex="-1"
+          >
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+              <div class="modal-content">
+
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    Properties — {{ selectedLandlord?.full_name }}
+                  </h5>
+                  <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+
+                  <!-- Add Property -->
+                  <div class="card mb-3">
+                    <div class="card-header fw-bold">Add Property</div>
+                    <div class="card-body row g-3">
+
+                      <div class="col-md-4">
+                        <input
+                          v-model="propertyForm.property_name"
+                          class="form-control"
+                          placeholder="Property Name"
+                        >
+                      </div>
+
+                      <div class="col-md-4">
+                        <input
+                          v-model="propertyForm.location"
+                          class="form-control"
+                          placeholder="Location"
+                        >
+                      </div>
+
+                      <div class="col-md-4 d-grid">
+                        <button class="btn btn-success" @click="saveProperty">
+                          Add Property
+                        </button>
+                      </div>
+
+                      <div class="col-md-12">
+                        <textarea
+                          v-model="propertyForm.description"
+                          class="form-control"
+                          rows="2"
+                          placeholder="Description (optional)"
+                        ></textarea>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <!-- Properties Table -->
+                  <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                      <tr>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Units</th>
+                        <th width="180">Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr v-if="properties.length === 0">
+                        <td colspan="4" class="text-center text-muted">
+                          No properties added yet
+                        </td>
+                      </tr>
+
+                      <tr v-for="property in properties" :key="property.id">
+                        <td>{{ property.property_name }}</td>
+                        <td>{{ property.location }}</td>
+                        <td>{{ property.units_count ?? 0 }}</td>
+                        <td>
+                          <button
+                            class="btn btn-sm btn-outline-primary"
+                            @click="manageUnits(property)"
+                          >
+                            Units
+                          </button>
+
+                          <button
+                            class="btn btn-sm btn-outline-danger"
+                            @click="deleteProperty(property)"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                </div>
+
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" data-bs-dismiss="modal">
+                    Close
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>                
                     
 
             </div>
@@ -453,10 +574,15 @@
         return {
             landlords: [],
             selectedLandlord: {},
+            properties: [],
+            propertyForm: {
+              property_name: '',
+              location: '',
+              description: ''
+            },
             errors: {},
             initializing: true,
             submitting: false,
-            showLoyaltyCardModal: false,
 
             data: {
               id: null,
@@ -480,6 +606,48 @@
         }
       },      
       methods: { 
+        manageProperties(landlord) {
+          this.selectedLandlord = landlord
+          this.properties = []
+          this.resetPropertyForm()
+          this.fetchProperties(landlord.id)
+
+          new bootstrap.Modal(
+            document.getElementById('managePropertiesModal')
+          ).show()
+        },
+
+        fetchProperties(landlordId) {
+          axios.get(`/api/landlords/${landlordId}/properties`)
+            .then(res => this.properties = res.data)
+        },
+
+        saveProperty() {
+          axios.post(
+            `/api/landlords/${this.selectedLandlord.id}/properties`,
+            this.propertyForm
+          ).then(res => {
+            this.properties.unshift(res.data)
+            this.resetPropertyForm()
+          })
+        },
+
+        deleteProperty(property) {
+          if (!confirm('Delete this property?')) return
+
+          axios.delete(`/api/properties/${property.id}`)
+            .then(() => {
+              this.properties = this.properties.filter(p => p.id !== property.id)
+            })
+        },
+
+        resetPropertyForm() {
+          this.propertyForm = {
+            property_name: '',
+            location: '',
+            description: ''
+          }
+        },        
         formatDate(date) {
           if (!date) return '—';
 
@@ -492,64 +660,7 @@
             hour: '2-digit',
             minute: '2-digit'
           });
-        },
-        openLoyaltyModal(customer){
-            this.selectedLandlord = customer
-            this.loyaltyMode = 'issue'
-
-            let modal = new bootstrap.Modal(document.getElementById('LoyaltyCardModal'))
-            modal.show()
-        },
-
-        viewLoyaltyCard(customer){
-            this.selectedLandlord = customer
-            this.loyaltyMode = 'view'
-
-            let modal = new bootstrap.Modal(document.getElementById('LoyaltyCardModal'))
-            modal.show()
-        },
-        confirmIssueCard(customer) {
-            // Call API to create a loyalty card record
-            axios.post('/api/loyalty-cards', { customer_id: customer.id, serial: this.generateSerial(customer) })
-                .then(res => {
-                    customer.loyalty_card = res.data;
-                    customer.cardIssued = true;   // ⭐ important
-                    customer.visits = 0;
-
-                    // SweetAlert success popup with emoji
-                    Swal.fire({
-                        icon: 'success',
-                        title: '🎉 Loyalty Card Issued!',
-                        text: `Card for ${customer.name} has been successfully issued.`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-
-                    // Optional toast for extra subtle notification
-                    toast.fire({
-                        icon: 'success',
-                        title: `✨ ${customer.name}'s loyalty card is now active!`
-                    });
-                })
-                .catch(err => {
-                    console.error(err);
-
-                    // Error popup
-                    Swal.fire({
-                        icon: 'error',
-                        title: '❌ Failed to Issue Card',
-                        text: 'Something went wrong while issuing the loyalty card.'
-                    });
-                });
-
-            // Hide the modal after issuing
-            const modal = bootstrap.Modal.getInstance(document.getElementById('LoyaltyCardModal'));
-            modal.hide();
-        },
-        generateSerial(customer) {
-          return 'CYB-' + String(customer.id).padStart(4, '0');
-        }, 
-              
+        },   
         viewLandlord(item)
         {
           console.log(this.selectedLandlord)
