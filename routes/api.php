@@ -49,6 +49,11 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/tenancies/{tenancy}/terminate', [TenancyController::class, 'terminate']);
 
     // Deposits
+    // List refundable deposits (GET)
+    Route::get('/deposits/refundable', [RefundController::class, 'refundableDeposits']);
+
+    // Finalize a refund (POST) - deposit ID required
+    Route::post('/deposits/{deposit}/finalize-refund', [RefundController::class, 'finalizeDepositFromDeposit']);
     Route::apiResource('deposits', DepositController::class);
 
     // Inspections
@@ -58,11 +63,6 @@ Route::middleware('auth:api')->group(function () {
     Route::post('/deductions/{deduction}/approve', [DeductionController::class, 'approve']);    
     Route::apiResource('deductions', DeductionController::class);
 
-    // List refundable deposits (GET)
-    Route::get('/deposits/refundable', [RefundController::class, 'refundableDeposits']);
-
-    // Finalize a refund (POST) - deposit ID required
-    Route::post('/deposits/{deposit}/finalize-refund', [RefundController::class, 'finalizeDepositFromDeposit']);
 
     // Audit Logs
     Route::apiResource('audit-logs', AuditLogController::class);

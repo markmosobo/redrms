@@ -4,7 +4,7 @@
 
       <!-- Dashboard -->
       <li class="nav-item">
-        <router-link to="/dashboard" custom v-slot="{ href, navigate, isActive }">
+        <router-link to="/home" custom v-slot="{ href, navigate, isActive }">
           <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
             <i class="bi bi-speedometer2"></i>
             <span>Dashboard</span>

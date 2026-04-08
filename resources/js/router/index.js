@@ -10,6 +10,8 @@ import Deposits from '../views/Deposits.vue';
 import Inspections from '../views/Inspections.vue';
 import Deductions from '../views/Deductions.vue';
 import Refunds from '../views/Refunds.vue';
+import AuditLogs from '../views/AuditLogs.vue';
+import Profile from '../views/Profile.vue';
 
 const routes = [
   // Public routes
@@ -24,6 +26,8 @@ const routes = [
   { path: '/inspections', name: 'inspections', component: Inspections, meta: { requiresAuth: true } },
   { path: '/deductions', name: 'deductions', component: Deductions, meta: { requiresAuth: true } },
   { path: '/refunds', name: 'refunds', component: Refunds, meta: { requiresAuth: true } },
+  { path: '/audit-logs', name: 'audit-logs', component: AuditLogs, meta: { requiresAuth: true } },
+  { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
 ];
 
 const router = createRouter({
