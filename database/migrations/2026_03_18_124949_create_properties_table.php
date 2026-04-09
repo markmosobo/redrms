@@ -16,7 +16,10 @@ return new class extends Migration
             $table->foreignId('landlord_id')
                   ->constrained('users')
                   ->cascadeOnDelete();
-
+            $table->foreignId('manager_id')
+              ->nullable()
+              ->constrained('users')
+              ->nullOnDelete();
             $table->string('property_name');
             $table->string('location');
             $table->text('description')->nullable();

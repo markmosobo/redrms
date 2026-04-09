@@ -13,6 +13,7 @@ class Property extends Model
 
     protected $fillable = [
         'landlord_id',
+        'manager_id',
         'property_name',
         'location',
         'description',
@@ -25,5 +26,11 @@ class Property extends Model
     public function units()
     {
         return $this->hasMany(Unit::class);
-    }    
+    } 
+    
+    // Property.php
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
+    }
 }

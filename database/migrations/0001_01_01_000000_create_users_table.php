@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('full_name')->nullable();
             $table->string('phone')->nullable();
             $table->string('email')->unique();
-            $table->enum('role', ['landlord', 'manager','tenant'])->default('tenant');
+            $table->enum('role', ['admin','landlord', 'manager','tenant'])->default('tenant');
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');

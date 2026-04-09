@@ -15,6 +15,15 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+
+        User::create([
+            'full_name'              => 'Admin Account',
+            'email'             => 'admin@redrms.co.ke',
+            'email_verified_at' => Carbon::now(),
+            'role'              => 'admin',
+            'password'          => Hash::make('password123'),
+        ]);
+
         User::create([
             'full_name'              => 'Landlord Account',
             'email'             => 'landlord@redrms.co.ke',

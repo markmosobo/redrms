@@ -85,6 +85,7 @@
                   <div class="mt-4 text-center">
                     <p class="small mb-2" style="color: purple;">Quick Auto-Login</p>
                     <div class="d-grid gap-2">
+                      <button type="button" class="btn btn-outline-success rounded-pill" @click="autoLogin('admin')">Admin</button>
                       <button type="button" class="btn btn-outline-success rounded-pill" @click="autoLogin('landlord')">Landlord</button>
                       <button type="button" class="btn btn-outline-info rounded-pill" @click="autoLogin('manager')">Manager</button>
                       <button type="button" class="btn btn-outline-warning rounded-pill" @click="autoLogin('tenant')">Tenant</button>
@@ -209,6 +210,10 @@ export default {
     },
     autoLogin(role) {
       const presets = {
+        admin: {
+          email: "admin@redrms.co.ke",
+          password: "password123"
+        },
         landlord: {
           email: "landlord@redrms.co.ke",
           password: "password123"

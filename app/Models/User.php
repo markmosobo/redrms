@@ -67,6 +67,12 @@ class User extends Authenticatable implements JWTSubject
     public function properties()
     {
         return $this->hasMany(Property::class, 'landlord_id');
+    }  
+    
+    // User.php
+    public function managedProperties()
+    {
+        return $this->hasMany(Property::class, 'manager_id');
     }    
 
 }

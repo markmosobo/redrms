@@ -177,7 +177,7 @@ export default {
       } finally {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        this.$router.replace('/login2');
+        this.$router.replace('/login');
       }
     }
   },
