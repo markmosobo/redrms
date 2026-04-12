@@ -25,7 +25,7 @@ class UserSeeder extends Seeder
         ]);
 
         User::create([
-            'full_name'              => 'Landlord Account',
+            'full_name'              => 'Landlord Account 1',
             'email'             => 'landlord@redrms.co.ke',
             'email_verified_at' => Carbon::now(),
             'role'              => 'landlord',
