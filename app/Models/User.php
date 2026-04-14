@@ -27,6 +27,7 @@ class User extends Authenticatable implements JWTSubject
         'role',
         'status',
         'password',
+        'must_change_password'
     ];
 
     /**
@@ -73,6 +74,19 @@ class User extends Authenticatable implements JWTSubject
     public function managedProperties()
     {
         return $this->hasMany(Property::class, 'manager_id');
+    }    
+
+    // Tenant → Tenancies
+    public function tenancies()
+    {
+        return $this->hasMany(\App\Models\Tenancy::class, 'tenant_id');
+    }
+
+    // Tenant → Current Unit
+    public function activeTenancy()
+    {
+        return $this->hasOne(\App\Models\Tenancy::class, 'tenant_id')
+                    ->where('status', 'active');
     }    
 
 }

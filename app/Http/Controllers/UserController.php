@@ -25,13 +25,16 @@ class UserController extends Controller
     
     public function managers()
     {
-        $users = User::where('role', 'manager')->get();
+        $users = User::where('role', 'manager')
+            ->withCount('managedProperties')
+            ->get();
+
         return response()->json($users);
-    } 
+    }
     
     public function tenants()
     {
-        $users = User::where('role', 'tenant')->get();
+        $users = User::where('role', 'tenant')->with('activeTenancy.unit.property')->get();
         return response()->json($users);
     }     
 

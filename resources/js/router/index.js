@@ -12,6 +12,8 @@ import Deductions from '../views/Deductions.vue';
 import Refunds from '../views/Refunds.vue';
 import AuditLogs from '../views/AuditLogs.vue';
 import Profile from '../views/Profile.vue';
+import Managers from '../views/Managers.vue';
+import Tenants from '../views/Tenants.vue';
 
 const routes = [
   // Public routes
@@ -20,6 +22,8 @@ const routes = [
   { path: '/register', name: 'register', component: Register },
   { path: '/home', name: 'home', component: Home, meta: { requiresAuth: true } },
   { path: '/landlords', name: 'landlords', component: Landlords, meta: { requiresAuth: true } },
+  { path: '/managers', name: 'managers', component: Managers, meta: { requiresAuth: true } },
+  { path: '/tenants', name: 'tenants', component: Tenants, meta: { requiresAuth: true } },
   { path: '/properties', name: 'properties', component: Properties, meta: { requiresAuth: true } },
   { path: '/tenancies', name: 'tenancies', component: Tenancies, meta: { requiresAuth: true } },
   { path: '/deposits', name: 'deposits', component: Deposits, meta: { requiresAuth: true } },

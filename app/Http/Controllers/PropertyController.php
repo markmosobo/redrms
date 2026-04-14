@@ -106,7 +106,15 @@ class PropertyController extends Controller
         ->withCount('units')
         ->latest()
         ->get();
-    } 
+    }
+    
+    public function managerProperties(User $manager)
+    {
+        return $manager->properties()
+        ->withCount('units')
+        ->latest()
+        ->get();
+    }    
     
     public function storeProperty(Request $request, User $landlord)
     {
@@ -117,5 +125,19 @@ class PropertyController extends Controller
         ]);
 
         return response()->json($property, 201);
-    }  
+    }
+    
+    public function assignToManager(Request $request, $managerId)
+    {
+        $request->validate([
+            'property_ids' => 'required|array'
+        ]);
+
+        Property::whereIn('id', $request->property_ids)
+            ->update([
+                'manager_id' => $managerId
+            ]);
+
+        return response()->json(['message' => 'Assigned successfully']);
+}    
 }

@@ -21,7 +21,7 @@
                     </div>
     
                     <div class="card-body pb-0">
-                      <h5 class="card-title">Landlords <span>| Landlords who have agreements with REDRMS</span></h5>
+                      <h5 class="card-title">Managers <span>| Managers who oversee properties under REDRMS</span></h5>
                       <p class="card-text">
                         <div class="row">
                           <div class="col d-flex">
@@ -32,9 +32,9 @@
                                   :class="{ active: isActive }"
                                   class="btn btn-sm btn-primary rounded-pill"
                                   style="background-color: darkgreen; border-color: darkgreen;"
-                                  @click="addLandlord()"
+                                  @click="addManager()"
                                 >
-                                  Add Landlord
+                                  Add Manager
                                 </a>
                           </div>
                           <div class="col-auto d-flex justify-content-end">
@@ -64,13 +64,14 @@
             
                       </p>
     
-                      <table id="LandlordsTable" class="table table-borderless">
+                      <table id="ManagersTable" class="table table-borderless">
                         <thead>
                           <tr>
                             <th scope="col">Full Name</th>
                             <th scope="col">Phone</th>
                             <th scope="col">Email</th>
                             <th scope="col">Status</th>
+                            <th scope="col">Properties</th>
                             <th scope="col">Action</th>
                           </tr>
                         </thead>
@@ -85,7 +86,7 @@
                           </tr>
                         </tbody>
                         <tbody v-else>
-                          <tr v-for="item in landlords" :key="item.id">
+                          <tr v-for="item in managers" :key="item.id">
                             <td>{{item.full_name}}</td>
                             <td>{{item.phone ?? "N/A"}}</td>
                             <td>{{item.email ?? "N/A"}}</td>
@@ -93,26 +94,30 @@
                               <span v-if="item.status == 'active'" class="badge bg-success">Active</span>
                               <span v-else class="badge bg-secondary">Inactive</span>
                             </td>
-
+                            <td>
+                              <span class="badge bg-primary">
+                                {{ item.managed_properties_count }}
+                              </span>
+                            </td>
                             <td>
                               <div class="btn-group" role="group">
                                   <button id="btnGroupDrop1" type="button" style="background-color: darkgreen; border-color: darkgreen;" class="btn btn-sm btn-primary rounded-pill dropdown-toggle" data-toggle="dropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                   Action
                                   </button>
                                   <div class="dropdown-menu">
-                                    <a @click="viewLandlord(item)" class="dropdown-item">
+                                    <a @click="viewManager(item)" class="dropdown-item">
                                       <i class="ri-eye-fill mr-2"></i> View
                                     </a>
 
-                                    <a @click="editLandlord(item)" class="dropdown-item">
+                                    <a @click="editManager(item)" class="dropdown-item">
                                       <i class="ri-pencil-fill mr-2"></i> Edit
                                     </a>
 
                                     <a @click="manageProperties(item)" class="dropdown-item">
-                                      <i class="ri-building-2-fill mr-2"></i> Properties
+                                      <i class="ri-building-2-fill mr-2"></i>Assign Properties
                                     </a>
 
-                                    <a @click="deleteLandlord(item.id)" class="dropdown-item">
+                                    <a @click="deleteManager(item.id)" class="dropdown-item">
                                       <i class="ri-delete-bin-line mr-2"></i> Delete
                                     </a>
                                   </div>
@@ -127,20 +132,20 @@
                   </div>
                 </div><!-- End Top Selling -->
 
-                <!-- View Landlord Modal -->
+                <!-- View Manager Modal -->
                 <div
                   class="modal fade"
-                  id="viewLandlordModal"
+                  id="viewManagerModal"
                   tabindex="-1"
-                  aria-labelledby="viewLandlordModalLabel"
+                  aria-labelledby="viewManagerModalLabel"
                   aria-hidden="true"
                 >
                   <div class="modal-dialog modal-lg">
                     <div class="modal-content">
 
                       <div class="modal-header">
-                        <h5 class="modal-title" id="viewLandlordModalLabel">
-                          View Landlord Details
+                        <h5 class="modal-title" id="viewManagerModalLabel">
+                          View Manager Details
                         </h5>
                         <button
                           type="button"
@@ -149,33 +154,33 @@
                         ></button>
                       </div>
 
-                      <div class="modal-body" v-if="selectedLandlord">
+                      <div class="modal-body" v-if="selectedManager">
 
                         <div class="row g-3">
 
                           <!-- Full Name -->
-                          <div class="col-md-6" v-if="selectedLandlord.full_name">
+                          <div class="col-md-6" v-if="selectedManager.full_name">
                             <strong>Full Name</strong><br>
-                            {{ selectedLandlord.full_name }}
+                            {{ selectedManager.full_name }}
                           </div>
 
                           <!-- Email -->
                           <div class="col-md-6">
                             <strong>Email</strong><br>
-                            {{ selectedLandlord.email }}
+                            {{ selectedManager.email }}
                           </div>
 
                           <!-- Phone -->
-                          <div class="col-md-6" v-if="selectedLandlord.phone">
+                          <div class="col-md-6" v-if="selectedManager.phone">
                             <strong>Phone</strong><br>
-                            {{ selectedLandlord.phone }}
+                            {{ selectedManager.phone }}
                           </div>
 
                           <!-- Role -->
                           <div class="col-md-6">
                             <strong>Role</strong><br>
                             <span class="badge bg-primary text-uppercase">
-                              {{ selectedLandlord.role }}
+                              {{ selectedManager.role }}
                             </span>
                           </div>
 
@@ -184,18 +189,18 @@
                             <strong>Status</strong><br>
                             <span
                               class="badge"
-                              :class="selectedLandlord.status === 'active'
+                              :class="selectedManager.status === 'active'
                                 ? 'bg-success'
                                 : 'bg-secondary'"
                             >
-                              {{ selectedLandlord.status }}
+                              {{ selectedManager.status }}
                             </span>
                           </div>
 
                           <!-- Email Verification -->
                           <div class="col-md-6">
                             <strong>Email Verified</strong><br>
-                            <span v-if="selectedLandlord.email_verified_at" class="text-success">
+                            <span v-if="selectedManager.email_verified_at" class="text-success">
                               Yes
                             </span>
                             <span v-else class="text-danger">
@@ -206,7 +211,7 @@
                           <!-- Created At -->
                           <div class="col-md-6">
                             <strong>Account Created</strong><br>
-                            {{ formatDate(selectedLandlord.created_at) }}
+                            {{ formatDate(selectedManager.created_at) }}
                           </div>
 
                         </div>
@@ -225,12 +230,12 @@
                   </div>
                 </div>
 
-                <!-- Add Landlord Modal -->
+                <!-- Add Manager Modal -->
                 <div
                   class="modal fade"
-                  id="addLandlordModal"
+                  id="addManagerModal"
                   tabindex="-1"
-                  aria-labelledby="addLandlordModalLabel"
+                  aria-labelledby="addManagerModalLabel"
                   aria-hidden="true"
                 >
                   <div class="modal-dialog modal-lg">
@@ -238,8 +243,8 @@
 
                       <!-- Header -->
                       <div class="modal-header">
-                        <h5 class="modal-title" id="addLandlordModalLabel">
-                          Add Landlord
+                        <h5 class="modal-title" id="addManagerModalLabel">
+                          Add Manager
                         </h5>
                         <button
                           type="button"
@@ -341,7 +346,7 @@
                           style="background: darkgreen; border-color: darkgreen;"
                           @click="submit"
                         >
-                          Save Landlord
+                          Save Manager
                         </button>
                       </div>
 
@@ -349,12 +354,12 @@
                   </div>
                 </div>
 
-                <!-- EDIT Landlord MODAL -->
+                <!-- EDIT Manager MODAL -->
                 <div
                   class="modal fade"
-                  id="editLandlordModal"
+                  id="editManagerModal"
                   tabindex="-1"
-                  aria-labelledby="editLandlordModalLabel"
+                  aria-labelledby="editManagerModalLabel"
                   aria-hidden="true"
                 >
                   <div class="modal-dialog modal-lg">
@@ -362,8 +367,8 @@
 
                       <!-- Header -->
                       <div class="modal-header">
-                        <h5 class="modal-title" id="editLandlordModalLabel">
-                          Edit Landlord
+                        <h5 class="modal-title" id="editManagerModalLabel">
+                          Edit Manager
                         </h5>
                         <button
                           type="button"
@@ -448,115 +453,109 @@
                   </div>
                 </div>
 
-          <!-- Manage Properties Modal -->
-          <div
-            class="modal fade"
-            id="managePropertiesModal"
-            tabindex="-1"
-          >
-            <div class="modal-dialog modal-xl modal-dialog-scrollable">
-              <div class="modal-content">
+                <!-- Assign Properties Modal -->
+                <div
+                  class="modal fade"
+                  id="managePropertiesModal"
+                  tabindex="-1"
+                >
+                  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                    <div class="modal-content">
 
-                <div class="modal-header">
-                  <h5 class="modal-title">
-                    Properties — {{ selectedLandlord?.full_name }}
-                  </h5>
-                  <button class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body">
-
-                  <!-- Add Property -->
-                  <div class="card mb-3">
-                    <div class="card-header fw-bold">Add Property</div>
-                    <div class="card-body row g-3">
-
-                      <div class="col-md-4">
-                        <input
-                          v-model="propertyForm.property_name"
-                          class="form-control"
-                          placeholder="Property Name"
-                        >
+                      <div class="modal-header">
+                        <h5 class="modal-title">
+                          Properties — {{ selectedManager?.full_name }}
+                        </h5>
+                        <button class="btn-close" data-bs-dismiss="modal"></button>
                       </div>
 
-                      <div class="col-md-4">
-                        <input
-                          v-model="propertyForm.location"
-                          class="form-control"
-                          placeholder="Location"
-                        >
+                      <div class="modal-body">
+
+                        <!-- Add Property -->
+                        <div class="card mb-3">
+                          <div class="card-header fw-bold">
+                            Assign Properties
+                          </div>
+
+                          <div class="card-body">
+
+                            <div class="row g-3">
+
+                              <div class="col-md-9">
+                                <select v-model="selectedPropertyIds" class="form-control" multiple>
+                                  <option
+                                    v-for="property in allProperties"
+                                    :key="property.id"
+                                    :value="property.id"
+                                  >
+                                    {{ property.property_name }} - {{ property.location }}
+                                  </option>
+                                </select>
+                              </div>
+
+                              <div class="col-md-3 d-grid">
+                                <button class="btn btn-success" @click="assignProperties">
+                                  Assign
+                                </button>
+                              </div>
+
+                            </div>
+
+                          </div>
+                        </div>
+
+                        <!-- Properties Table -->
+                        <table class="table table-bordered table-striped">
+                          <thead class="table-dark">
+                            <tr>
+                              <th>Name</th>
+                              <th>Location</th>
+                              <th>Units</th>
+                              <th width="180">Actions</th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            <tr v-if="properties.length === 0">
+                              <td colspan="4" class="text-center text-muted">
+                                No properties added yet
+                              </td>
+                            </tr>
+
+                            <tr v-for="property in properties" :key="property.id">
+                              <td>{{ property.property_name }}</td>
+                              <td>{{ property.location }}</td>
+                              <td>{{ property.units_count ?? 0 }}</td>
+                              <td>
+                                <button
+                                  class="btn btn-sm btn-outline-primary"
+                                  @click="manageUnits(property)"
+                                >
+                                  Units
+                                </button>
+
+                                <button
+                                  class="btn btn-sm btn-outline-danger"
+                                  @click="deleteProperty(property)"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+
                       </div>
 
-                      <div class="col-md-4 d-grid">
-                        <button class="btn btn-success" @click="saveProperty">
-                          Add Property
+                      <div class="modal-footer">
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+                          Close
                         </button>
-                      </div>
-
-                      <div class="col-md-12">
-                        <textarea
-                          v-model="propertyForm.description"
-                          class="form-control"
-                          rows="2"
-                          placeholder="Description (optional)"
-                        ></textarea>
                       </div>
 
                     </div>
                   </div>
-
-                  <!-- Properties Table -->
-                  <table class="table table-bordered table-striped">
-                    <thead class="table-dark">
-                      <tr>
-                        <th>Name</th>
-                        <th>Location</th>
-                        <th>Units</th>
-                        <th width="180">Actions</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      <tr v-if="properties.length === 0">
-                        <td colspan="4" class="text-center text-muted">
-                          No properties added yet
-                        </td>
-                      </tr>
-
-                      <tr v-for="property in properties" :key="property.id">
-                        <td>{{ property.property_name }}</td>
-                        <td>{{ property.location }}</td>
-                        <td>{{ property.units_count ?? 0 }}</td>
-                        <td>
-                          <button
-                            class="btn btn-sm btn-outline-primary"
-                            @click="manageUnits(property)"
-                          >
-                            Units
-                          </button>
-
-                          <button
-                            class="btn btn-sm btn-outline-danger"
-                            @click="deleteProperty(property)"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                </div>
-
-                <div class="modal-footer">
-                  <button class="btn btn-secondary" data-bs-dismiss="modal">
-                    Close
-                  </button>
-                </div>
-
-              </div>
-            </div>
-          </div>                
+                </div>                
                     
 
             </div>
@@ -586,9 +585,11 @@
     export default {
       data() {
         return {
-            landlords: [],
-            selectedLandlord: {},
+            managers: [],
+            selectedManager: {},
             properties: [],
+            allProperties: [],       // all available properties
+            selectedPropertyIds: [],
             propertyForm: {
               property_name: '',
               location: '',
@@ -604,17 +605,17 @@
               email: '',
               phone: '',
               status: 'active',
-              role: 'landlord',
+              role: 'manager',
               password: ''
             },
 
-            form: {        // EDIT landlord
+            form: {        // EDIT Manager
               id: null,
               full_name: '',
               email: '',
               phone: '',
               status: '',
-              role: 'landlord',
+              role: 'manager',
               password: ''
             }
         }
@@ -637,47 +638,41 @@
           }
           return password;
         },        
-        manageProperties(landlord) {
-          this.selectedLandlord = landlord
-          this.properties = []
-          this.resetPropertyForm()
-          this.fetchProperties(landlord.id)
+        manageProperties(manager) {
+          this.selectedManager = manager
+          this.selectedPropertyIds = []
+
+          this.fetchProperties(manager.id)
+          this.fetchAllProperties()
 
           new bootstrap.Modal(
             document.getElementById('managePropertiesModal')
           ).show()
         },
-
-        fetchProperties(landlordId) {
-          axios.get(`/api/landlords/${landlordId}/properties`)
+        fetchProperties(managerId) {
+          axios.get(`/api/managers/${managerId}/properties`)
             .then(res => this.properties = res.data)
+            console.log("maja", this.properties)
         },
-
-        saveProperty() {
-          axios.post(
-            `/api/landlords/${this.selectedLandlord.id}/properties`,
-            this.propertyForm
-          ).then(res => {
-            this.properties.unshift(res.data)
-            this.resetPropertyForm()
+        fetchAllProperties() {
+          axios.get('/api/properties')
+            .then(res => this.allProperties = res.data.properties)
+        },
+        assignProperties() {
+          axios.post(`/api/managers/${this.selectedManager.id}/assign-properties`, {
+            property_ids: this.selectedPropertyIds
           })
-        },
+          .then(() => {
 
-        deleteProperty(property) {
-          if (!confirm('Delete this property?')) return
+            this.fetchProperties(this.selectedManager.id)
 
-          axios.delete(`/api/properties/${property.id}`)
-            .then(() => {
-              this.properties = this.properties.filter(p => p.id !== property.id)
+            window.toast.fire({
+              icon: 'success',
+              title: 'Properties assigned successfully'
             })
-        },
 
-        resetPropertyForm() {
-          this.propertyForm = {
-            property_name: '',
-            location: '',
-            description: ''
-          }
+            this.selectedPropertyIds = []
+          })
         },        
         formatDate(date) {
           if (!date) return '—';
@@ -692,15 +687,15 @@
             minute: '2-digit'
           });
         },   
-        viewLandlord(item)
+        viewManager(item)
         {
-          console.log(this.selectedLandlord)
-          this.selectedLandlord = item;
+          console.log(this.selectedManager)
+          this.selectedManager = item;
           // Show the modal after fetching data
-          const modal = new bootstrap.Modal(document.getElementById('viewLandlordModal'));
+          const modal = new bootstrap.Modal(document.getElementById('viewManagerModal'));
           modal.show();
         },
-        editLandlord(item) {
+        editManager(item) {
         this.form = {
             id: item.id,
             full_name: item.full_name,
@@ -710,7 +705,7 @@
         };
 
         const modal = new bootstrap.Modal(
-            document.getElementById('editLandlordModal')
+            document.getElementById('editManagerModal')
         );
         modal.show();
         },
@@ -729,23 +724,23 @@
               email: this.form.email,
               phone: this.form.phone,
               status: this.form.status,
-              role: 'landlord', // Always force role
+              role: 'manager', // Always force role
             };
 
             await axios.put(`/api/users/${this.form.id}`, payload);
 
-            toast.fire('Success!', 'Landlord updated successfully', 'success');
+            toast.fire('Success!', 'Manager updated successfully', 'success');
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(
-              document.getElementById('editLandlordModal')
+              document.getElementById('editManagerModal')
             );
             modal.hide();
 
             // Reset form
             this.resetForm();
 
-            // Reload landlord list
+            // Reload managers list
             this.loadLists();
 
           } catch (err) {
@@ -763,11 +758,11 @@
             email: '',
             phone: '',
             status: 'active',
-            role: 'landlord'
+            role: 'manager'
           };
         },
 
-        addLandlord()
+        addManager()
         {
           this.data = {
             id: null,
@@ -778,7 +773,7 @@
             password: this.generateTempPassword()
           };          
           // Show the modal after fetching data
-          const modal = new bootstrap.Modal(document.getElementById('addLandlordModal'));
+          const modal = new bootstrap.Modal(document.getElementById('addManagerModal'));
           modal.show();
         },
         validateForm() {
@@ -810,23 +805,23 @@
               email: this.data.email,
               phone: this.data.phone,
               status: this.data.status,
-              role: 'landlord',
+              role: 'manager',
               password: this.data.id ? undefined : this.data.password
             };
 
             if (this.data.id) {
-              // UPDATE landlord
+              // UPDATE manager
               await axios.put(`/api/users/${this.data.id}`, payload);
-              toast.fire('Success!', 'Landlord updated successfully', 'success');
+              toast.fire('Success!', 'Manager updated successfully', 'success');
             } else {
-              // CREATE landlord
+              // CREATE manager
               await axios.post('/api/users', payload);
-              toast.fire('Success!', 'Landlord added successfully.Share the temporary password securely', 'success');
+              toast.fire('Success!', 'Manager added successfully.Share the temporary password securely', 'success');
             }
 
             // Close modal
             const modal = bootstrap.Modal.getInstance(
-              document.getElementById('addLandlordModal')
+              document.getElementById('addManagerModal')
             );
             modal.hide();
 
@@ -855,14 +850,14 @@
             email: '',
             phone: '',
             status: 'active',
-            role: 'landlord',
+            role: 'manager',
             password: ''
           };
         },
         navigateTo(location){
             this.$router.push(location)
         },
-        deleteLandlord(id){
+        deleteManager(id){
                 Swal.fire({
                   title: 'Are you sure?',
                   text: "You won't be able to revert this!",
@@ -877,7 +872,7 @@
                   axios.delete('/api/users/'+id).then(() => {
                   toast.fire(
                     'Deleted!',
-                    'Landlord has been deleted.',
+                    'Manager has been deleted.',
                     'success'
                   )
                   this.loadLists();
@@ -896,13 +891,13 @@
         },
         loadLists() {
           this.initializing = true; // Start spinner
-          axios.get('/api/landlords')
+          axios.get('/api/managers')
             .then((response) => {
-              this.landlords = response.data;
+              this.managers = response.data;
               console.log(response)
 
               setTimeout(() => {
-                $("#LandlordsTable").DataTable();
+                $("#ManagersTable").DataTable();
               }, 10);
             })
             .catch((error) => {

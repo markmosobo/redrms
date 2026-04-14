@@ -1,119 +1,128 @@
 <template>
   <aside id="sidebar" class="sidebar">
-    <ul class="sidebar-nav" id="sidebar-nav">
+    <ul class="sidebar-nav">
 
-      <!-- Dashboard -->
-      <li class="nav-item">
-        <router-link to="/home" custom v-slot="{ href, navigate, isActive }">
-          <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
+      <li v-for="item in visibleMenu" :key="item.to" class="nav-item">
+        <router-link :to="item.to" custom v-slot="{ href, navigate, isActive }">
+          <a
+            :href="href"
+            class="nav-link"
+            :class="{ active: isActive }"
+            @click="navigate"
+          >
+            <i :class="`bi ${item.icon}`"></i>
+            <span>{{ item.label }}</span>
           </a>
         </router-link>
-      </li>
-
-      <!-- Landlords -->
-      <li v-show="userRole === 'landlord'" class="nav-item">
-        <router-link to="/landlords" custom v-slot="{ href, navigate }">
-          <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-            <i class="bi-people"></i>
-            <span>Landlords</span>
-          </a>
-        </router-link>
-      </li>
-      
-      <!-- Properties -->
-      <li v-show="userRole === 'landlord'" class="nav-item">
-        <router-link to="/properties" custom v-slot="{ href, navigate }">
-          <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-            <i class="bi bi-buildings"></i>
-            <span>Properties</span>
-          </a>
-        </router-link>
-      </li>
-
-      <!-- Tenancies -->
-      <li v-show="userRole === 'landlord'" class="nav-item">
-        <router-link to="/tenancies" custom v-slot="{ href, navigate }">
-          <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-            <i class="bi bi-house-door"></i>
-            <span>Tenancies</span>
-          </a>
-        </router-link>
-      </li>
-
-
-    <li v-show="userRole === 'landlord'" class="nav-item">
-      <router-link to="/deposits" custom v-slot="{ href, navigate, isActive }">
-        <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-          <i class="bi bi-safe"></i>
-          <span>Deposits</span>
-        </a>
-      </router-link>
-    </li>
-
-    <li v-show="userRole === 'landlord'" class="nav-item">
-      <router-link to="/inspections" custom v-slot="{ href, navigate, isActive }">
-        <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-          <i class="bi bi-clipboard-check"></i>
-          <span>Inspections</span>
-        </a>
-      </router-link>
-    </li>
-
-
-    <li v-show="userRole === 'landlord'" class="nav-item">
-      <router-link to="/deductions" custom v-slot="{ href, navigate, isActive }">
-        <a :href="href" :class="{ active: isActive }" class="nav-link" @click="navigate">
-          <i class="bi bi-scissors"></i>
-          <span>Deductions</span>
-        </a>
-      </router-link>
-    </li>    
-
-    <!-- Refunds -->
-    <li class="nav-item mt-3">
-    <RouterLink to="/refunds" :class="{ active: isActive }" class="nav-link">
-        <i class="bi bi-arrow-counterclockwise"></i>
-        <span>Refunds</span>
-    </RouterLink>
-    </li>
-
-      <!-- Logs -->
-      <li v-show="userRole === 'landlord'" class="nav-item">
-        <RouterLink to="/audit-logs" class="nav-link">
-          <i class="bi bi-shield-check"></i>
-          <span>Audit Logs</span>
-        </RouterLink>
-      </li>
-
-
-
-
-      <!-- Profile -->
-      <li class="nav-item mt-3">
-        <RouterLink to="/profile" :class="{ active: isActive }" class="nav-link">
-          <i class="bi bi-person-circle"></i>
-          <span>My Profile</span>
-        </RouterLink>
       </li>
 
     </ul>
   </aside>
 </template>
 
-
 <script>
 export default {
   name: 'TheSidebar',
   data() {
     return {
-      userRole: ''
+      userRole: '',
+      menuItems: [
+        {
+          label: 'Dashboard',
+          icon: 'bi-speedometer2',
+          to: '/home',
+          roles: ['admin', 'landlord', 'manager', 'tenant']
+        },
+
+        {
+          label: 'Landlords',
+          icon: 'bi-people',
+          to: '/landlords',
+          roles: ['admin']
+        },
+
+        {
+          label: 'Managers',
+          icon: 'bi-person-badge',
+          to: '/managers',
+          roles: ['admin']
+        },
+
+        {
+          label: 'Tenants',
+          icon: 'bi-person-badge',
+          to: '/tenants',
+          roles: ['admin']
+        },                
+
+        {
+          label: 'Properties',
+          icon: 'bi-buildings',
+          to: '/properties',
+          roles: ['admin', 'landlord', 'manager']
+        },
+
+        {
+          label: 'Tenancies',
+          icon: 'bi-house-door',
+          to: '/tenancies',
+          roles: ['admin', 'landlord', 'manager']
+        },
+
+        {
+          label: 'Deposits',
+          icon: 'bi-safe',
+          to: '/deposits',
+          roles: ['admin', 'landlord']
+        },
+
+        {
+          label: 'Inspections',
+          icon: 'bi-clipboard-check',
+          to: '/inspections',
+          roles: ['admin', 'landlord', 'manager']
+        },
+
+        {
+          label: 'Deductions',
+          icon: 'bi-scissors',
+          to: '/deductions',
+          roles: ['admin', 'landlord']
+        },
+
+        {
+          label: 'Refunds',
+          icon: 'bi-arrow-counterclockwise',
+          to: '/refunds',
+          roles: ['admin', 'landlord']
+        },
+
+        {
+          label: 'Audit Logs',
+          icon: 'bi-shield-check',
+          to: '/audit-logs',
+          roles: ['admin']
+        },
+
+        {
+          label: 'My Profile',
+          icon: 'bi-person-circle',
+          to: '/profile',
+          roles: ['admin', 'landlord', 'manager', 'tenant']
+        }
+      ]
     };
   },
+  computed: {
+    visibleMenu() {
+      return this.menuItems.filter(item =>
+        item.roles.includes(this.userRole)
+      );
+    }
+  },  
   mounted() {
     const user = JSON.parse(localStorage.getItem('user'));
-    this.userRole = user?.role || '';
+    this.userRole = user?.role ?? 'tenant';
   }
 };
 </script>

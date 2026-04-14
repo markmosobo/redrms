@@ -202,4 +202,36 @@ class TenancyController extends Controller
 
         return response()->noContent();
     }    
+
+    public function assign(Request $request)
+    {
+        $request->validate([
+            'tenant_id' => 'required|exists:users,id',
+            'unit_id'   => 'required|exists:units,id',
+            'start_date' => 'required|date',
+            'deposit_amount' => 'required|numeric'
+        ]);
+
+        // Prevent double-occupying a unit
+        $unit = Unit::with('activeTenancy')->findOrFail($request->unit_id);
+
+        if ($unit->activeTenancy) {
+            return response()->json([
+                'message' => 'Unit already occupied'
+            ], 422);
+        }
+
+        $tenancy = Tenancy::create([
+            'tenant_id' => $request->tenant_id,
+            'unit_id' => $request->unit_id,
+            'start_date' => $request->start_date,
+            'deposit_amount' => $request->deposit_amount,
+            'status' => 'active'
+        ]);
+
+        return response()->json([
+            'message' => 'Tenant assigned successfully',
+            'tenancy' => $tenancy
+        ]);
+    }    
 }

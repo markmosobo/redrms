@@ -26,7 +26,6 @@ import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
 import Swal from 'sweetalert2';
-import * as jwt_decode from 'jwt-decode'; // Fixed import
 
 const app = createApp(App);
 
@@ -63,14 +62,16 @@ axios.interceptors.response.use(
     }
 );
 
-// Optional: Check token expiry on page load
+import { jwtDecode } from 'jwt-decode';
+
 function checkTokenExpiry() {
     const token = localStorage.getItem('token');
     if (!token) return false;
 
     try {
-        const decoded = jwt_decode.default(token); // <--- Use .default here
+        const decoded = jwtDecode(token);
         const now = Date.now() / 1000; // seconds
+
         if (decoded.exp < now) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
