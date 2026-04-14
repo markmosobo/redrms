@@ -13,15 +13,29 @@ return new class extends Migration
     {
         Schema::create('inspections', function (Blueprint $table) {
             $table->bigIncrements('id');
+
             $table->foreignId('tenancy_id')
-                  ->constrained('tenancies')
-                  ->cascadeOnDelete();
-            $table->date('inspection_date'); 
-            $table->longText('notes')->nullable(); 
+                ->constrained('tenancies')
+                ->cascadeOnDelete();
+
+            $table->foreignId('unit_id')
+                ->constrained('units')
+                ->cascadeOnDelete();
+
+            $table->date('inspection_date');
+
+            $table->longText('notes')->nullable();
+
             $table->foreignId('created_by')
-                  ->constrained('users')
-                  ->cascadeOnDelete(); 
-            $table->enum('inspection_type', ['move_in', 'move_out'])->default('move_out');
+                ->constrained('users')
+                ->cascadeOnDelete();
+
+            $table->enum('inspection_type', ['move_in', 'move_out']);
+
+            // 🔥 important for workflow control
+            $table->enum('status', ['draft', 'completed', 'verified'])
+                ->default('completed');
+
             $table->timestamps();
         });
     }

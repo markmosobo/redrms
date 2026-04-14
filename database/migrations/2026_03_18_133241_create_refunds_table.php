@@ -13,18 +13,36 @@ return new class extends Migration
     {
         Schema::create('refunds', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->foreignId('deposit_id')
-                  ->constrained('deposits')
-                  ->cascadeOnDelete();  
-            $table->decimal('refundable_amount', 12, 2);
-            $table->date('refund_date');
-            $table->enum('approval_status', ['pending', 'approved','rejected'])->default('pending');
-            $table->foreignId('approved_by')
-                  ->nullable()
-                  ->constrained('users')
-                  ->nullOnDelete();
 
-            $table->timestamp('approved_at')->nullable(); 
+            $table->foreignId('deposit_id')
+                ->constrained('deposits')
+                ->cascadeOnDelete();
+
+            // 🔥 calculated AFTER deductions
+            $table->decimal('refundable_amount', 12, 2);
+
+            $table->date('refund_date')->nullable();
+
+            // 🔥 stronger workflow control
+            $table->enum('status', [
+                'pending',
+                'approved',
+                'rejected',
+                'paid'
+            ])->default('pending');
+
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamp('approved_at')->nullable();
+
+            // 🔥 critical for real-world + defense
+            $table->string('payment_reference')->nullable();
+
+            $table->text('remarks')->nullable();
+
             $table->timestamps();
         });
     }

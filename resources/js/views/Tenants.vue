@@ -32,7 +32,7 @@
                                   :class="{ active: isActive }"
                                   class="btn btn-sm btn-primary rounded-pill"
                                   style="background-color: darkgreen; border-color: darkgreen;"
-                                  @click="addManager()"
+                                  @click="addTenant()"
                                 >
                                   Add Tenant
                                 </a>
@@ -354,7 +354,7 @@
                           style="background: darkgreen; border-color: darkgreen;"
                           @click="submit"
                         >
-                          Save Manager
+                          Save Tenant
                         </button>
                       </div>
 
@@ -829,7 +829,7 @@
               await axios.put(`/api/users/${this.data.id}`, payload);
               toast.fire('Success!', 'Tenant updated successfully', 'success');
             } else {
-              // CREATE manager
+              // CREATE tenant
               await axios.post('/api/users', payload);
               toast.fire('Success!', 'Tenant added successfully.Share the temporary password securely', 'success');
             }

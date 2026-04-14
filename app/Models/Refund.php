@@ -15,9 +15,17 @@ class Refund extends Model
         'deposit_id',
         'refundable_amount',
         'refund_date',
-        'approval_status',
+        'status',
         'approved_by',
         'approved_at',
+        'payment_reference',
+        'remarks',
+    ];
+
+    protected $casts = [
+        'refundable_amount' => 'decimal:2',
+        'refund_date' => 'date',
+        'approved_at' => 'datetime',
     ];
 
     /**

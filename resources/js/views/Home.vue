@@ -32,6 +32,47 @@
           </div>
         </div>
 
+        <!-- ===== ACTION REQUIRED WIDGET ===== -->
+        <div v-if="widgets?.action_required_deposits?.length" class="col-12 mb-4">
+          <div class="card shadow-sm border-warning">
+            <div class="card-body">
+
+              <h5 class="card-title text-warning">
+                🔔 Action Required Deposits
+              </h5>
+
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Tenant</th>
+                    <th>Unit</th>
+                    <th>Status</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr v-for="d in widgets.action_required_deposits" :key="d.id">
+                    <td>{{ d.tenancy.tenant.full_name }}</td>
+                    <td>{{ d.tenancy.unit.unit_number }}</td>
+
+                    <td>
+                      <span class="badge bg-warning">
+                        {{ d.status }}
+                      </span>
+                    </td>
+
+                    <td>KES {{ d.amount_received }}</td>
+                  </tr>
+                </tbody>
+
+              </table>
+
+            </div>
+          </div>
+
+        </div>        
+
         <!-- ===== DASHBOARD CARDS ===== -->
         <div
           v-for="(card, index) in cards"
@@ -78,6 +119,9 @@ export default {
       role: null,
       summary: null,
       cards: [],
+      widgets: {
+        action_required_deposits: []
+      }
     }
   },
 
@@ -88,6 +132,10 @@ export default {
         this.role = res.data.role
         this.summary = res.data.summary
         this.cards = res.data.cards
+        this.widgets = {
+          action_required_deposits:
+            res.data.widgets?.action_required_deposits || []
+        }
       } catch (error) {
         console.error('Dashboard error:', error)
       }

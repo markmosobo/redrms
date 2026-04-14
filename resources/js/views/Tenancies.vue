@@ -105,7 +105,7 @@
                             <i class="ri-pencil-fill me-2"></i> Edit
                           </a>
                           <a
-                            v-if="tenancy.status === 'active'"
+                            v-if="tenancy.status === 'active' && tenancy.deposit && tenancy.deposit.status === 'held'"
                             @click="terminateTenancy(tenancy)"
                             class="dropdown-item text-danger"
                           >

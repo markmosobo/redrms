@@ -13,25 +13,34 @@ return new class extends Migration
     {
         Schema::create('deductions', function (Blueprint $table) {
             $table->bigIncrements('id');
+
             $table->foreignId('deposit_id')
-                  ->constrained('deposits')
-                  ->cascadeOnDelete();
+                ->constrained('deposits')
+                ->cascadeOnDelete();
 
             $table->foreignId('inspection_id')
-                  ->nullable()
-                  ->constrained('inspections')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('inspections')
+                ->nullOnDelete();
 
             $table->text('description')->nullable();
 
             $table->decimal('amount', 12, 2);
 
-            $table->foreignId('approved_by')
-                  ->nullable()
-                  ->constrained('users')
-                  ->nullOnDelete();
+            // 🔥 workflow control (VERY IMPORTANT)
+            $table->enum('status', [
+                'pending',
+                'approved',
+                'rejected'
+            ])->default('pending');
 
-            $table->timestamp('approved_at')->nullable();            
+            $table->foreignId('approved_by')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->timestamp('approved_at')->nullable();
+
             $table->timestamps();
         });
     }

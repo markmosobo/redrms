@@ -7,6 +7,7 @@ use App\Models\Property;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Tenancy;
+use App\Models\Deposit;
 
 class DashboardController extends Controller
 {
@@ -114,6 +115,13 @@ class DashboardController extends Controller
     protected function managerDashboard(User $user)
     {
         $properties = Property::where('manager_id', $user->id)->pluck('id');
+        $actionRequired = Deposit::with(['tenancy.tenant', 'tenancy.unit.property'])
+            ->whereIn('status', [
+                'under_inspection',
+                'deductions_applied',
+                'pending_refund'
+            ])
+            ->get();
 
         return response()->json([
             'role' => 'manager',
@@ -129,6 +137,9 @@ class DashboardController extends Controller
                     'color' => 'primary',
                 ],
             ],
+            'widgets' => [
+                'action_required_deposits' => $actionRequired
+            ]
         ]);
     }
 

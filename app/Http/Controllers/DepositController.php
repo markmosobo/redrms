@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Deposit;
 use App\Models\Tenancy;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 
 class DepositController extends Controller
@@ -32,7 +33,7 @@ class DepositController extends Controller
             'tenancy_id'     => $request->tenancy_id,
             'amount_received'=> $request->amount_received,
             'received_date'  => $request->received_date ?? now(),
-            'status'         => 'held',
+            'status'         => 'active',
         ]);
 
         return response()->json([
@@ -133,5 +134,77 @@ class DepositController extends Controller
                 'refund'            => $refund,
             ]);
         });
-    }      
+    }  
+    
+    public function receive(Request $request, Deposit $deposit)
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | 1. VALIDATION
+        |--------------------------------------------------------------------------
+        */
+        $request->validate([
+            'amount' => 'required|numeric|min:1'
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. UPDATE AMOUNTS
+        |--------------------------------------------------------------------------
+        */
+        $deposit->amount_received += $request->amount;
+
+        // Set last payment date
+        $deposit->received_date = now();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. CALCULATE BALANCE
+        |--------------------------------------------------------------------------
+        */
+        $deposit->current_balance =
+            max(0, $deposit->required_amount - $deposit->amount_received);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. DETERMINE STATUS
+        |--------------------------------------------------------------------------
+        */
+        if ($deposit->amount_received >= $deposit->required_amount) {
+            $deposit->status = 'held'; // fully paid → ready for inspection
+        } else {
+            $deposit->status = 'active'; // still paying
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. SAVE DEPOSIT
+        |--------------------------------------------------------------------------
+        */
+        $deposit->save();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. NOTIFICATIONS
+        |--------------------------------------------------------------------------
+        */
+        Notification::create([
+            'user_id' => $deposit->tenancy->tenant_id,
+            'title'   => 'Deposit Payment Received',
+            'message' => 'KES ' . $request->amount .
+                        ' received for Unit ' . $deposit->tenancy->unit->unit_number .
+                        '. Balance: KES ' . $deposit->current_balance,
+            'type'    => 'deposit_received'
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. RESPONSE
+        |--------------------------------------------------------------------------
+        */
+        return response()->json([
+            'message' => 'Deposit updated successfully',
+            'data'    => $deposit
+        ]);
+    }  
 }

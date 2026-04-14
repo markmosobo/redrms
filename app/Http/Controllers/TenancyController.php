@@ -6,24 +6,21 @@ use App\Models\Deposit;
 use App\Models\Tenancy;
 use App\Models\Unit;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class TenancyController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        $tenancies = Tenancy::with(['tenant', 'unit.property'])->get();
+        $tenancies = Tenancy::with(['tenant', 'unit.property','deposit'])->get();
         return response()->json($tenancies);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * 🔥 MAIN TENANCY CREATION (PRIMARY FLOW)
      */
-
     public function store(Request $request)
     {
         $request->validate([
@@ -34,7 +31,6 @@ class TenancyController extends Controller
             'deposit_amount'  => 'required|numeric|min:0',
         ]);
 
-        // Ensure unit is vacant
         $unit = Unit::where('id', $request->unit_id)
             ->where('status', 'vacant')
             ->first();
@@ -43,9 +39,11 @@ class TenancyController extends Controller
             return response()->json(['message' => 'Selected unit is not vacant'], 422);
         }
 
-        // Run everything in a transaction
+        $tenancy = null;
+
         DB::transaction(function () use ($request, $unit, &$tenancy) {
-            // Create tenancy
+
+            // 1. Create tenancy
             $tenancy = Tenancy::create([
                 'tenant_id'      => $request->tenant_id,
                 'unit_id'        => $request->unit_id,
@@ -55,22 +53,15 @@ class TenancyController extends Controller
                 'status'         => 'active',
             ]);
 
-            // Create initial deposit record
-            Deposit::create([
-                'tenancy_id'     => $tenancy->id,
-                'amount_received'=> $request->deposit_amount,
-                'received_date'  => now(),
-                'status'         => 'held'
-            ]);
+            // 2. 🚀 AUTO CREATE DEPOSIT (CORE FEATURE)
+            $this->createDepositForTenancy($tenancy);
 
-            // Mark unit as occupied
+            // 3. Mark unit occupied
             $unit->update(['status' => 'occupied']);
 
-            // Activate tenant
-            $tenant = User::find($request->tenant_id);
-            if ($tenant) {
-                $tenant->update(['status' => 'active']);
-            }
+            // 4. Activate tenant
+            User::where('id', $request->tenant_id)
+                ->update(['status' => 'active']);
         });
 
         return response()->json([
@@ -80,7 +71,7 @@ class TenancyController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * 🔥 SHOW
      */
     public function show(string $id)
     {
@@ -89,7 +80,7 @@ class TenancyController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * 🔥 UPDATE TENANCY
      */
     public function update(Request $request, string $id)
     {
@@ -109,7 +100,6 @@ class TenancyController extends Controller
             'status',
         ]));
 
-        // If tenancy terminated, free the unit
         if ($request->status === 'terminated') {
             $tenancy->unit->update(['status' => 'vacant']);
         }
@@ -121,13 +111,12 @@ class TenancyController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * 🔥 DELETE TENANCY
      */
     public function destroy(string $id)
     {
         $tenancy = Tenancy::findOrFail($id);
 
-        // Free unit on delete
         $tenancy->unit->update(['status' => 'vacant']);
 
         $tenancy->delete();
@@ -138,25 +127,30 @@ class TenancyController extends Controller
     }
 
     /**
-     * Get active tenancy by unit
+     * 🔥 GET ACTIVE TENANCY BY UNIT
      */
     public function activeByUnit($unitId)
     {
         $tenancy = Tenancy::where('unit_id', $unitId)
-                          ->where('status', 'active')
-                          ->first();
+            ->where('status', 'active')
+            ->first();
 
         return response()->json($tenancy);
     }
 
+    /**
+     * 🔥 SHOW ACTIVE TENANCY FOR UNIT (RELATION VERSION)
+     */
     public function showTenancy(Unit $unit)
     {
         return $unit->activeTenancy()->with('tenant')->first();
     }
 
+    /**
+     * 🔥 LEGACY STORE (NOW ALSO AUTO-DEPOSIT ENABLED)
+     */
     public function storeTenancy(Request $request, Unit $unit)
     {
-        // Ensure unit has no active tenancy
         if ($unit->activeTenancy) {
             return response()->json([
                 'message' => 'Unit already has an active tenancy'
@@ -164,19 +158,24 @@ class TenancyController extends Controller
         }
 
         $tenancy = Tenancy::create([
-            'tenant_id' => $request->tenant_id,
-            'unit_id' => $unit->id,
-            'start_date' => $request->start_date,
+            'tenant_id'      => $request->tenant_id,
+            'unit_id'        => $unit->id,
+            'start_date'     => $request->start_date,
             'deposit_amount' => $request->deposit_amount,
-            'status' => 'active'
+            'status'         => 'active'
         ]);
 
-        // Mark unit occupied
-        $unit->update(['status' => 'occupied']);      
+        // 🚀 AUTO DEPOSIT
+        $this->createDepositForTenancy($tenancy);
+
+        $unit->update(['status' => 'occupied']);
 
         return response()->json($tenancy, 201);
     }
 
+    /**
+     * 🔥 UPDATE TENANCY (ALT)
+     */
     public function updateTenancy(Request $request, Tenancy $tenancy)
     {
         $tenancy->update(
@@ -190,29 +189,62 @@ class TenancyController extends Controller
 
         return response()->json($tenancy);
     }
-    
+
+    /**
+     * 🔥 TERMINATE TENANCY
+     */
     public function terminate(Tenancy $tenancy)
     {
-        $tenancy->update([
-            'status' => 'terminated',
-            'end_date' => now()
-        ]);
+        DB::transaction(function () use ($tenancy) {
 
-        $tenancy->unit->update(['status' => 'vacant']);
+            // Terminate tenancy
+            $tenancy->update([
+                'status' => 'terminated',
+                'end_date' => now()
+            ]);
+
+            // Free unit
+            $tenancy->unit->update(['status' => 'vacant']);
+
+            $deposit = Deposit::where('tenancy_id', $tenancy->id)
+                ->where('status', 'held')
+                ->first();
+
+            if ($deposit) {
+                $deposit->update([
+                    'status' => 'under_inspection'
+                ]);
+
+                // 🔔 NOTIFY MANAGERS
+                $managers = User::where('role', 'manager')->get();
+
+                foreach ($managers as $manager) {
+                    Notification::create([
+                        'user_id' => $manager->id,
+                        'title' => 'Inspection Required',
+                        'message' => 'Unit ' . $tenancy->unit->unit_number .
+                            ' deposit is ready for inspection.',
+                        'type' => 'inspection_required'
+                    ]);
+                }
+            }        
+        });
 
         return response()->noContent();
-    }    
+    }
 
+    /**
+     * 🔥 ASSIGN TENANT TO UNIT
+     */
     public function assign(Request $request)
     {
         $request->validate([
-            'tenant_id' => 'required|exists:users,id',
-            'unit_id'   => 'required|exists:units,id',
-            'start_date' => 'required|date',
+            'tenant_id'      => 'required|exists:users,id',
+            'unit_id'        => 'required|exists:units,id',
+            'start_date'     => 'required|date',
             'deposit_amount' => 'required|numeric'
         ]);
 
-        // Prevent double-occupying a unit
         $unit = Unit::with('activeTenancy')->findOrFail($request->unit_id);
 
         if ($unit->activeTenancy) {
@@ -222,16 +254,76 @@ class TenancyController extends Controller
         }
 
         $tenancy = Tenancy::create([
-            'tenant_id' => $request->tenant_id,
-            'unit_id' => $request->unit_id,
-            'start_date' => $request->start_date,
+            'tenant_id'      => $request->tenant_id,
+            'unit_id'        => $request->unit_id,
+            'start_date'     => $request->start_date,
             'deposit_amount' => $request->deposit_amount,
-            'status' => 'active'
+            'status'         => 'active'
         ]);
+
+        // 🚀 AUTO DEPOSIT
+        $this->createDepositForTenancy($tenancy);
+
+        $unit->update(['status' => 'occupied']);
 
         return response()->json([
             'message' => 'Tenant assigned successfully',
             'tenancy' => $tenancy
         ]);
-    }    
+    }
+
+    /**
+     * 🚀 CORE LOGIC: AUTO DEPOSIT CREATION
+     */
+    private function createDepositForTenancy(Tenancy $tenancy)
+    {
+        $deposit = Deposit::create([
+            'tenancy_id'        => $tenancy->id,
+
+            // 🔥 NEW: expected full deposit
+            'required_amount'   => $tenancy->deposit_amount,
+
+            // what has been paid so far
+            'amount_received'   => 0,
+
+            // remaining balance = required - received
+            'current_balance'   => $tenancy->deposit_amount,
+
+            'received_date'     => null,
+
+            // starts as NOT paid yet
+            'status'            => 'active'
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 🔔 NOTIFICATIONS
+        |--------------------------------------------------------------------------
+        */
+
+        // 1. Notify tenant
+        Notification::create([
+            'user_id' => $tenancy->tenant_id,
+            'title'   => 'Deposit Created',
+            'message' => 'Your deposit of KES ' . $tenancy->deposit_amount .
+                        ' has been set for Unit ' . $tenancy->unit->unit_number,
+            'type'    => 'deposit_created'
+        ]);
+
+        // 2. Notify managers
+        $managers = User::where('role', 'manager')->get();
+
+        foreach ($managers as $manager) {
+            Notification::create([
+                'user_id' => $manager->id,
+                'title'   => 'New Deposit Registered',
+                'message' => 'Deposit tracking started for Unit ' .
+                            $tenancy->unit->unit_number .
+                            ' (Expected: KES ' . $tenancy->deposit_amount . ')',
+                'type'    => 'deposit_created'
+            ]);
+        }
+
+        return $deposit;
+    }
 }

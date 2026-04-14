@@ -8,7 +8,7 @@
         class="nav-item"
       >
 
-        <!-- 🔹 Parent with dropdown -->
+        <!-- 🔹 Dropdown Items -->
         <template v-if="item.children">
 
           <a
@@ -16,6 +16,7 @@
             class="nav-link collapsed"
             data-bs-toggle="collapse"
             :data-bs-target="`#menu-${slug(item.label)}`"
+            aria-expanded="false"
           >
             <i :class="`bi ${item.icon}`"></i>
             <span>{{ item.label }}</span>
@@ -27,7 +28,10 @@
             :id="`menu-${slug(item.label)}`"
             data-bs-parent="#sidebar"
           >
-            <li v-for="child in item.children" :key="child.to">
+            <li
+              v-for="child in item.children"
+              :key="child.to"
+            >
               <router-link
                 :to="child.to"
                 custom
@@ -47,7 +51,7 @@
 
         </template>
 
-        <!-- 🔹 Normal menu item -->
+        <!-- 🔹 Normal Items -->
         <template v-else>
           <router-link
             :to="item.to"
@@ -88,24 +92,14 @@ export default {
           roles: ['admin', 'landlord', 'manager', 'tenant']
         },
 
-        // 🔥 NEW DROPDOWN
         {
           label: 'Manage Users',
           icon: 'bi-people',
           roles: ['admin'],
           children: [
-            {
-              label: 'Landlords',
-              to: '/landlords'
-            },
-            {
-              label: 'Managers',
-              to: '/managers'
-            },
-            {
-              label: 'Tenants',
-              to: '/tenants'
-            }
+            { label: 'Landlords', to: '/landlords' },
+            { label: 'Managers', to: '/managers' },
+            { label: 'Tenants', to: '/tenants' }
           ]
         },
 
@@ -135,18 +129,9 @@ export default {
           icon: 'bi-cash-coin',
           roles: ['admin', 'landlord'],
           children: [
-            {
-              label: 'Deposits',
-              to: '/deposits'
-            },
-            {
-              label: 'Deductions',
-              to: '/deductions'
-            },
-            {
-              label: 'Refunds',
-              to: '/refunds'
-            }
+            { label: 'Deposits', to: '/deposits' },
+            { label: 'Deductions', to: '/deductions' },
+            { label: 'Refunds', to: '/refunds' }
           ]
         },
 
@@ -182,7 +167,10 @@ export default {
 
   methods: {
     slug(text) {
-      return text.toLowerCase().replace(/\s+/g, '-');
+      return text
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/&/g, 'and'); // IMPORTANT FIX
     }
   }
 };
@@ -213,13 +201,13 @@ export default {
   color: #fff;
 }
 
+.nav-content {
+  padding-left: 10px;
+}
+
 .nav-content .nav-link {
   padding-left: 42px;
   font-size: 0.95rem;
-}
-
-.nav-content {
-  padding-left: 10px;
 }
 
 .nav-item .bi-chevron-down {

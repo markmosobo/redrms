@@ -17,6 +17,66 @@
     <nav class="header-nav ms-auto">
       <ul class="d-flex align-items-center">
 
+        <!-- Notifications -->
+        <li class="nav-item dropdown pe-3">
+
+          <a
+            class="nav-link nav-icon"
+            href="#"
+            data-bs-toggle="dropdown"
+          >
+            <i class="bi bi-bell"></i>
+
+            <!-- badge -->
+            <span v-if="unreadCount > 0" class="badge bg-danger badge-number">
+              {{ unreadCount }}
+            </span>
+          </a>
+
+          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow notifications">
+
+            <li class="dropdown-header">
+              You have {{ unreadCount }} new notifications
+            </li>
+
+            <li><hr class="dropdown-divider"></li>
+
+            <li v-for="n in notifications" :key="n.id">
+              <div class="dropdown-item d-flex align-items-start justify-content-between">
+
+                <!-- notification content -->
+                <div class="me-2" style="cursor: pointer;" @click="openNotification(n)">
+                  <div class="fw-bold" :class="{ 'text-muted': n.read_at }">
+                    {{ n.title }}
+                  </div>
+                  <small class="text-muted">
+                    {{ n.message }}
+                  </small>
+                </div>
+
+                <!-- action button -->
+                <button
+                  v-if="!n.read_at"
+                  class="btn btn-sm btn-outline-success"
+                  @click.stop="markAsRead(n.id)"
+                >
+                  Mark read
+                </button>
+
+                <span v-else class="badge bg-secondary">
+                  Read
+                </span>
+
+              </div>
+            </li>
+
+            <li v-if="notifications.length === 0" class="text-center p-2 text-muted">
+              No notifications
+            </li>
+
+          </ul>
+        </li>
+
         <!-- Profile -->
         <li class="nav-item dropdown pe-3">
           <a
@@ -125,7 +185,10 @@ export default {
     return {
       current_user: {},
       query: '',
-      searchResults: []
+      searchResults: [],
+
+      notifications: [],
+      unreadCount: 0
     };
   },
 
@@ -139,7 +202,32 @@ export default {
     handleSidebar() {
       document.body.classList.toggle('toggle-sidebar');
     },
+    async markAsRead(id) {
+      try {
+        await axios.post(`/api/notifications/${id}/read`);
 
+        const notif = this.notifications.find(n => n.id === id);
+        if (notif) notif.read_at = new Date();
+
+        this.unreadCount = this.notifications.filter(n => !n.read_at).length;
+
+      } catch (err) {
+        console.error(err);
+      }
+    },   
+    async fetchNotifications() {
+      try {
+        const res = await axios.get('/api/notifications')
+
+        this.notifications = res.data
+
+        // unread count (if you later add read/unread column)
+        this.unreadCount = res.data.filter(n => !n.read_at).length
+
+      } catch (err) {
+        console.error('Notification error:', err)
+      }
+    },
     async performSearch() {
       if (!this.query.trim()) {
         this.searchResults = [];
@@ -174,11 +262,17 @@ export default {
             }
           }
         );
-      } catch (_) {
-        // ignore
-      } finally {
+      } catch (_) {}
+
+      finally {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+
+        // stop polling
+        if (this.notificationInterval) {
+          clearInterval(this.notificationInterval);
+        }
+
         this.$router.replace('/login');
       }
     }
@@ -186,7 +280,17 @@ export default {
 
   mounted() {
     this.current_user = JSON.parse(localStorage.getItem('user')) || {};
-    console.log("mbwakni", this.current_user)
+
+    // only run if logged in
+    if (this.isLoggedIn) {
+      this.fetchNotifications();
+
+      this.notificationInterval = setInterval(() => {
+        if (this.isLoggedIn) {
+          this.fetchNotifications();
+        }
+      }, 30000);
+    }
   }
 };
 </script>

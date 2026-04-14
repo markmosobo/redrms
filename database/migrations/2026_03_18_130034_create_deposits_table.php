@@ -13,12 +13,29 @@ return new class extends Migration
     {
         Schema::create('deposits', function (Blueprint $table) {
             $table->bigIncrements('id');
+
             $table->foreignId('tenancy_id')
-                  ->constrained('tenancies')
-                  ->cascadeOnDelete();
-            $table->decimal('amount_received');
+                ->constrained('tenancies')
+                ->cascadeOnDelete();
+
+            $table->decimal('amount_received', 12, 2);
+            $table->decimal('required_amount', 12, 2);
+            $table->decimal('current_balance', 12, 2); // 🔥 important for deductions tracking
+
             $table->date('received_date')->nullable();
-            $table->enum('status', ['held', 'partially_deducted','refunded'])->default('held');
+
+            // 🔥 improved lifecycle tracking
+            $table->enum('status', [
+                'active',
+                'held',
+                'under_inspection',
+                'deductions_applied',
+                'pending_refund',
+                'refunded'
+            ])->default('active');
+
+            $table->text('remarks')->nullable();
+
             $table->timestamps();
         });
     }

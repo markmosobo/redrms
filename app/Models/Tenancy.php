@@ -35,4 +35,14 @@ class Tenancy extends Model
     {
         return $this->belongsTo(Unit::class);
     }
+
+    public function deposit()
+    {
+        return $this->hasOne(Deposit::class);
+    }
+
+    public function inspections()
+    {
+        return $this->hasMany(Inspection::class);
+    }    
 }

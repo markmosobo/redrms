@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
@@ -51,6 +52,7 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
     Route::post('/tenancies/{tenancy}/terminate', [TenancyController::class, 'terminate']);
     Route::post('/tenancies/assign', [TenancyController::class, 'assign']);
 
+    Route::post('/deposits/{deposit}/receive', [DepositController::class, 'receive']);
     Route::get('/deposits/refundable', [RefundController::class, 'refundableDeposits']);
     Route::post('/deposits/{deposit}/finalize-refund', [RefundController::class, 'finalizeDepositFromDeposit']);
     Route::apiResource('deposits', DepositController::class);
@@ -62,5 +64,13 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::apiResource('audit-logs', AuditLogController::class);
 
-    Route::get('/dashboard',[DashboardController::class, 'index']);    
+    Route::get('/dashboard',[DashboardController::class, 'index']); 
+
+    Route::get('/notifications', [NotificationController::class, 'index']);
+
+    Route::post('/notifications', [NotificationController::class, 'store']);
+
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);      
 });
