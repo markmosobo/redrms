@@ -2,18 +2,70 @@
   <aside id="sidebar" class="sidebar">
     <ul class="sidebar-nav">
 
-      <li v-for="item in visibleMenu" :key="item.to" class="nav-item">
-        <router-link :to="item.to" custom v-slot="{ href, navigate, isActive }">
+      <li
+        v-for="item in visibleMenu"
+        :key="item.label"
+        class="nav-item"
+      >
+
+        <!-- 🔹 Parent with dropdown -->
+        <template v-if="item.children">
+
           <a
-            :href="href"
-            class="nav-link"
-            :class="{ active: isActive }"
-            @click="navigate"
+            href="#"
+            class="nav-link collapsed"
+            data-bs-toggle="collapse"
+            :data-bs-target="`#menu-${slug(item.label)}`"
           >
             <i :class="`bi ${item.icon}`"></i>
             <span>{{ item.label }}</span>
+            <i class="bi bi-chevron-down ms-auto"></i>
           </a>
-        </router-link>
+
+          <ul
+            class="nav-content collapse"
+            :id="`menu-${slug(item.label)}`"
+            data-bs-parent="#sidebar"
+          >
+            <li v-for="child in item.children" :key="child.to">
+              <router-link
+                :to="child.to"
+                custom
+                v-slot="{ href, navigate, isActive }"
+              >
+                <a
+                  :href="href"
+                  class="nav-link"
+                  :class="{ active: isActive }"
+                  @click="navigate"
+                >
+                  {{ child.label }}
+                </a>
+              </router-link>
+            </li>
+          </ul>
+
+        </template>
+
+        <!-- 🔹 Normal menu item -->
+        <template v-else>
+          <router-link
+            :to="item.to"
+            custom
+            v-slot="{ href, navigate, isActive }"
+          >
+            <a
+              :href="href"
+              class="nav-link"
+              :class="{ active: isActive }"
+              @click="navigate"
+            >
+              <i :class="`bi ${item.icon}`"></i>
+              <span>{{ item.label }}</span>
+            </a>
+          </router-link>
+        </template>
+
       </li>
 
     </ul>
@@ -23,9 +75,11 @@
 <script>
 export default {
   name: 'TheSidebar',
+
   data() {
     return {
       userRole: '',
+
       menuItems: [
         {
           label: 'Dashboard',
@@ -34,26 +88,26 @@ export default {
           roles: ['admin', 'landlord', 'manager', 'tenant']
         },
 
+        // 🔥 NEW DROPDOWN
         {
-          label: 'Landlords',
+          label: 'Manage Users',
           icon: 'bi-people',
-          to: '/landlords',
-          roles: ['admin']
+          roles: ['admin'],
+          children: [
+            {
+              label: 'Landlords',
+              to: '/landlords'
+            },
+            {
+              label: 'Managers',
+              to: '/managers'
+            },
+            {
+              label: 'Tenants',
+              to: '/tenants'
+            }
+          ]
         },
-
-        {
-          label: 'Managers',
-          icon: 'bi-person-badge',
-          to: '/managers',
-          roles: ['admin']
-        },
-
-        {
-          label: 'Tenants',
-          icon: 'bi-person-badge',
-          to: '/tenants',
-          roles: ['admin']
-        },                
 
         {
           label: 'Properties',
@@ -70,13 +124,6 @@ export default {
         },
 
         {
-          label: 'Deposits',
-          icon: 'bi-safe',
-          to: '/deposits',
-          roles: ['admin', 'landlord']
-        },
-
-        {
           label: 'Inspections',
           icon: 'bi-clipboard-check',
           to: '/inspections',
@@ -84,17 +131,23 @@ export default {
         },
 
         {
-          label: 'Deductions',
-          icon: 'bi-scissors',
-          to: '/deductions',
-          roles: ['admin', 'landlord']
-        },
-
-        {
-          label: 'Refunds',
-          icon: 'bi-arrow-counterclockwise',
-          to: '/refunds',
-          roles: ['admin', 'landlord']
+          label: 'Finance & Settlements',
+          icon: 'bi-cash-coin',
+          roles: ['admin', 'landlord'],
+          children: [
+            {
+              label: 'Deposits',
+              to: '/deposits'
+            },
+            {
+              label: 'Deductions',
+              to: '/deductions'
+            },
+            {
+              label: 'Refunds',
+              to: '/refunds'
+            }
+          ]
         },
 
         {
@@ -113,16 +166,24 @@ export default {
       ]
     };
   },
+
   computed: {
     visibleMenu() {
       return this.menuItems.filter(item =>
         item.roles.includes(this.userRole)
       );
     }
-  },  
+  },
+
   mounted() {
     const user = JSON.parse(localStorage.getItem('user'));
     this.userRole = user?.role ?? 'tenant';
+  },
+
+  methods: {
+    slug(text) {
+      return text.toLowerCase().replace(/\s+/g, '-');
+    }
   }
 };
 </script>
@@ -157,4 +218,11 @@ export default {
   font-size: 0.95rem;
 }
 
+.nav-content {
+  padding-left: 10px;
+}
+
+.nav-item .bi-chevron-down {
+  font-size: 0.75rem;
+}
 </style>

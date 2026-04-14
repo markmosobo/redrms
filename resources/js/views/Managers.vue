@@ -649,11 +649,17 @@
             document.getElementById('managePropertiesModal')
           ).show()
         },
-        fetchProperties(managerId) {
-          axios.get(`/api/managers/${managerId}/properties`)
-            .then(res => this.properties = res.data)
-            console.log("maja", this.properties)
-        },
+fetchProperties(managerId) {
+    axios
+        .get(`/api/managers/${managerId}/properties`)
+        .then(res => {
+            this.properties = res.data;
+            console.log('Assigned properties:', this.properties);
+        })
+        .catch(err => {
+            console.error(err);
+        });
+},
         fetchAllProperties() {
           axios.get('/api/properties')
             .then(res => this.allProperties = res.data.properties)

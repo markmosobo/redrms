@@ -8,7 +8,9 @@
       <i class="bi bi-list toggle-sidebar-btn" @click="handleSidebar"></i>
 
       <span class="d-none d-lg-block" style="color: darkgreen;">
-        <strong>REDRMS</strong> PORTAL
+        <strong v-if="current_user.role === 'admin'">ADMIN PORTAL</strong> 
+        <strong v-if="current_user.role === 'landlord'">LANDLORD</strong> 
+        <strong v-if="current_user.role === 'tenant'">TENANT</strong> 
       </span>
     </div>
 
@@ -24,16 +26,16 @@
           >
             <i class="bi bi-person-fill"></i>
             <span class="d-none d-md-block dropdown-toggle ps-2">
-              {{ current_user.name }}
+              {{ current_user.full_name }}
             </span>
           </a>
 
           <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
             <li class="dropdown-header">
-              <h6>{{ current_user.name }}</h6>
+              <h6>{{ current_user.full_name }}</h6>
               <span v-if="current_user.role === 'admin'">Admin</span>
               <span v-else-if="current_user.role === 'landlord'">Landlord</span>
-              <span v-else-if="current_user.role === 'caretaker'">Caretaker</span>
+              <span v-else-if="current_user.role === 'manager'">Manager</span>
               <span v-else-if="current_user.role === 'tenant'">Tenant</span>
               <span v-else-if="current_user.role === 'service_provider'">Service Provider</span>
             </li>
@@ -184,6 +186,7 @@ export default {
 
   mounted() {
     this.current_user = JSON.parse(localStorage.getItem('user')) || {};
+    console.log("mbwakni", this.current_user)
   }
 };
 </script>

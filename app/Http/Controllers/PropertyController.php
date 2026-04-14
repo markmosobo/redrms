@@ -108,9 +108,9 @@ class PropertyController extends Controller
         ->get();
     }
     
-    public function managerProperties(User $manager)
+    public function managerProperties($managerId)
     {
-        return $manager->properties()
+        return Property::where('manager_id', $managerId)
         ->withCount('units')
         ->latest()
         ->get();
@@ -139,5 +139,5 @@ class PropertyController extends Controller
             ]);
 
         return response()->json(['message' => 'Assigned successfully']);
-}    
+    }    
 }
