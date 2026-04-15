@@ -224,7 +224,9 @@ class TenancyController extends Controller
                         'title' => 'Inspection Required',
                         'message' => 'Unit ' . $tenancy->unit->unit_number .
                             ' deposit is ready for inspection.',
-                        'type' => 'inspection_required'
+                        'type' => 'inspection_required',
+                        'resource_type' => 'tenancy',
+                        'resource_id'   => $tenancy->id,
                     ]);
                 }
             }        

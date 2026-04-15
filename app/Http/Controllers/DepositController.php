@@ -194,7 +194,9 @@ class DepositController extends Controller
             'message' => 'KES ' . $request->amount .
                         ' received for Unit ' . $deposit->tenancy->unit->unit_number .
                         '. Balance: KES ' . $deposit->current_balance,
-            'type'    => 'deposit_received'
+            'type'    => 'deposit_received',
+            'resource_type' => 'deposit',
+            'resource_id'   => $deposit->id,
         ]);
 
         /*

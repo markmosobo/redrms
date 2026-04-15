@@ -16,7 +16,9 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');       // FK → users.id
             $table->longText('message')->nullable();
             $table->string('title')->nullable();            
-            $table->string('type')->nullable();      
+            $table->string('type')->nullable();
+            $table->unsignedBigInteger('resource_id')->nullable();
+            $table->string('resource_type')->nullable();                  
             $table->timestamp('read_at')->nullable();      
             $table->foreign( 'user_id')->references('id')->on('users')->onDelete('cascade');
             $table->timestamps();

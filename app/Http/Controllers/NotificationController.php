@@ -14,7 +14,7 @@ class NotificationController extends Controller
     public function index()
     {
         return Notification::where('user_id', Auth::id())
-            ->whereNull('read_at')
+            // ->whereNull('read_at')
             ->latest()
             ->take(50)
             ->get();

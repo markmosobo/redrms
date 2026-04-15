@@ -9,8 +9,8 @@
 
       <span class="d-none d-lg-block" style="color: darkgreen;">
         <strong v-if="current_user.role === 'admin'">ADMIN PORTAL</strong> 
-        <strong v-if="current_user.role === 'landlord'">LANDLORD</strong> 
-        <strong v-if="current_user.role === 'tenant'">TENANT</strong> 
+        <strong v-if="current_user.role === 'landlord'">LANDLORD PORTAL</strong> 
+        <strong v-if="current_user.role === 'tenant'">TENANT PORTAL</strong> 
       </span>
     </div>
 
@@ -45,7 +45,7 @@
               <div class="dropdown-item d-flex align-items-start justify-content-between">
 
                 <!-- notification content -->
-                <div class="me-2" style="cursor: pointer;" @click="openNotification(n)">
+                <div class="me-2" style="cursor: pointer;">
                   <div class="fw-bold" :class="{ 'text-muted': n.read_at }">
                     {{ n.title }}
                   </div>
@@ -201,7 +201,7 @@ export default {
   methods: {
     handleSidebar() {
       document.body.classList.toggle('toggle-sidebar');
-    },
+    },    
     async markAsRead(id) {
       try {
         await axios.post(`/api/notifications/${id}/read`);

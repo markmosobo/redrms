@@ -14,6 +14,7 @@ import AuditLogs from '../views/AuditLogs.vue';
 import Profile from '../views/Profile.vue';
 import Managers from '../views/Managers.vue';
 import Tenants from '../views/Tenants.vue';
+import Create from '../views/inspections/Create.vue';
 
 const routes = [
   // Public routes

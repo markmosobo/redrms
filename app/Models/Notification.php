@@ -14,6 +14,8 @@ class Notification extends Model
         'title',
         'message',
         'type',
+        'resource_id',
+        'resource_type',
         'read_at'
     ];
 
