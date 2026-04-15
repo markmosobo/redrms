@@ -2,6 +2,7 @@
   <Master>
     <section class="section dashboard">
       <div class="row">
+
         <div class="col-12">
           <div class="card top-selling overflow-auto">
             <div class="card-body pb-0">
@@ -10,7 +11,8 @@
                 Final Refunds <span>| Derived from Deposits</span>
               </h5>
 
-              <table id="RefundsTable" class="table table-borderless">
+              <!-- TABLE -->
+              <table class="table table-borderless">
                 <thead>
                   <tr>
                     <th>Tenant</th>
@@ -24,57 +26,93 @@
                   </tr>
                 </thead>
 
-                <tbody v-if="loading">
-                  <tr>
-                    <td colspan="8" class="text-center">
-                      <div class="spinner-border text-primary"></div>
-                    </td>
-                  </tr>
-                </tbody>
+<tbody>
 
-                <tbody v-else>
-                  <tr v-for="deposit in deposits" :key="deposit.id">
-                    <td>{{ deposit.tenancy.tenant.full_name }}</td>
-                    <td>{{ deposit.tenancy.unit.property.property_name }}</td>
-                    <td>{{ deposit.tenancy.unit.unit_number }}</td>
+  <!-- 🔄 LOADING STATE -->
+  <tr v-if="loading">
+    <td colspan="8" class="text-center py-5">
+      <div class="spinner-border text-primary mb-2"></div>
+      <div class="text-muted">Loading refunds…</div>
+    </td>
+  </tr>
 
-                    <td>KES {{ deposit.amount_received }}</td>
-                    <td>KES {{ deposit.total_deductions || 0 }}</td>
-                    <td><strong>KES {{ refundableAmount(deposit) }}</strong></td>
+  <!-- 📭 EMPTY STATE -->
+  <tr v-else-if="refunds.length === 0">
+    <td colspan="8" class="text-center py-5">
+      <i class="ri-inbox-line fs-1 text-muted mb-2 d-block"></i>
+      <div class="fw-semibold">No refunds available</div>
+      <div class="text-muted">
+        All refundable deposits have already been processed.
+      </div>
+    </td>
+  </tr>
 
-                    <td>
-                      <span
-                        class="badge"
-                        :class="deposit.status === 'held' ? 'bg-warning' : 'bg-success'"
-                      >
-                        {{ deposit.status }}
-                      </span>
-                    </td>
+  <!-- 📊 DATA STATE -->
+  <tr v-else v-for="refund in refunds" :key="refund.refund_id">
 
-                    <td>
-                      <div class="btn-group">
-                        <button class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">
-                          Action
-                        </button>
-                        <div class="dropdown-menu">
-                          <a @click="viewBreakdown(deposit)" class="dropdown-item">
-                            <i class="ri-eye-fill me-2"></i> View Breakdown
-                          </a>
-                          <a v-if="deposit.status === 'held'" @click="finalizeRefund(deposit)" class="dropdown-item">
-                            <i class="ri-refund-2-line me-2"></i> Finalize Refund
-                          </a>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
+    <td>{{ refund.tenant?.full_name || 'N/A' }}</td>
+
+    <td>{{ refund.property?.property_name || 'N/A' }}</td>
+
+    <td>{{ refund.unit?.unit_number || 'N/A' }}</td>
+
+    <td>KES {{ refund.amount_received }}</td>
+
+    <td>KES {{ refund.total_deductions || 0 }}</td>
+
+    <td>
+      <strong>KES {{ refund.refundable_amount }}</strong>
+    </td>
+
+    <td>
+      <span
+        class="badge"
+        :class="{
+          'bg-warning': refund.status === 'pending',
+          'bg-success': refund.status === 'approved',
+          'bg-danger': refund.status === 'rejected',
+          'bg-info': refund.status === 'paid'
+        }"
+      >
+        {{ refund.status }}
+      </span>
+    </td>
+
+    <td>
+      <div class="btn-group">
+        <button
+          class="btn btn-sm btn-primary dropdown-toggle"
+          data-bs-toggle="dropdown"
+        >
+          Action
+        </button>
+
+        <div class="dropdown-menu">
+          <a class="dropdown-item" @click="viewBreakdown(refund)">
+            View Breakdown
+          </a>
+
+          <a
+            v-if="refund.status === 'pending'"
+            class="dropdown-item"
+            @click="finalizeRefund(refund)"
+          >
+            Finalize Refund
+          </a>
+        </div>
+      </div>
+    </td>
+
+  </tr>
+
+</tbody>
               </table>
 
             </div>
           </div>
         </div>
 
-        <!-- Breakdown Modal -->
+        <!-- BREAKDOWN MODAL -->
         <div class="modal fade" id="refundBreakdownModal" tabindex="-1">
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -84,18 +122,28 @@
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
 
-              <div class="modal-body" v-if="selectedDeposit">
-                <p><strong>Deposit:</strong> KES {{ selectedDeposit.amount_received }}</p>
+              <div class="modal-body" v-if="selectedRefund">
+
+                <p><strong>Deposit:</strong> KES {{ selectedRefund.amount_received }}</p>
+
                 <hr>
-                <h6>Deductions</h6>
-                <ul v-if="selectedDeposit.deductions.length">
-                  <li v-for="d in selectedDeposit.deductions" :key="d.id">
-                    {{ d.description }} — <strong>KES {{ d.amount }}</strong>
-                  </li>
-                </ul>
-                <p v-else class="text-muted">No deductions recorded</p>
+
+                <p v-if="Number(selectedRefund.total_deductions) > 0">
+                  <strong>Deductions:</strong>
+                  KES {{ selectedRefund.total_deductions }}
+                </p>
+
+                <p v-else class="text-muted">
+                  No deductions recorded
+                </p>
+
                 <hr>
-                <p><strong>Refundable Amount:</strong> KES {{ refundableAmount(selectedDeposit) }}</p>
+
+                <p>
+                  <strong>Refundable Amount:</strong>
+                  KES {{ selectedRefund.refundable_amount }}
+                </p>
+
               </div>
 
               <div class="modal-footer">
@@ -115,76 +163,116 @@
 import Master from "@/components/Master.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
-import $ from "jquery";
-import "datatables.net-dt/js/dataTables.dataTables";
-import "datatables.net-dt/css/jquery.dataTables.min.css";
 
-const toast = Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 3000 });
+const toast = Swal.mixin({
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 3000,
+});
 
 export default {
   components: { Master },
 
   data() {
-    return { deposits: [], selectedDeposit: null, loading: true };
+    return {
+      refunds: [],
+      loading: false,
+      selectedRefund: null,
+    };
   },
 
   methods: {
-    refundableAmount(deposit) {
-      return Number(deposit.amount_received) - Number(deposit.total_deductions || 0);
-    },
 
-    // Load refundable deposits
+    // -------------------------
+    // LOAD REFUNDS
+    // -------------------------
     async loadRefunds() {
-        this.loading = true;
-        try {
-            const res = await axios.get("/api/deposits/refundable");
-            this.deposits = res.data;
+      this.loading = true;
 
-            setTimeout(() => {
-                $("#RefundsTable").DataTable();
-            }, 10);
-        } catch (e) {
-            toast.fire({ icon: "error", title: "Failed to load refunds" });
-            console.error(e);
-        } finally {
-            this.loading = false;
-        }
+      try {
+        const res = await axios.get("/api/refunds/pending");
+        this.refunds = res.data;
+
+      } catch (e) {
+        console.error(e);
+        toast.fire({ icon: "error", title: "Failed to load refunds" });
+
+      } finally {
+        this.loading = false;
+      }
     },
 
-    // Finalize refund
-    async finalizeRefund(deposit) {
-        const refundable = Number(deposit.amount_received) - Number(deposit.total_deductions || 0);
+    // -------------------------
+    // REFUND CALC (SAFE)
+    // -------------------------
+    refundableAmount(refund) {
+      return Number(refund.amount_received) -
+             Number(refund.total_deductions || 0);
+    },
 
-        const result = await Swal.fire({
-            title: "Finalize Refund?",
-            html: `<p><strong>Tenant:</strong> ${deposit.tenancy.tenant.full_name}</p>
-                <p><strong>Refund Amount:</strong> KES ${refundable}</p>
-                <p class="text-muted">This action cannot be undone.</p>`,
-            icon: "question",
-            showCancelButton: true,
-            confirmButtonText: "Finalize",
-            confirmButtonColor: "#198754",
+    // -------------------------
+    // FINALIZE REFUND
+    // -------------------------
+    async finalizeRefund(refund) {
+
+      // 🔒 Guard
+      if (refund.status !== 'pending') {
+        toast.fire({ icon: "info", title: "Refund already processed" });
+        return;
+      }
+
+      const refundable = Number(this.refundableAmount(refund)).toLocaleString();
+
+      const result = await Swal.fire({
+        title: "Finalize Refund?",
+        html: `
+          <p><strong>Tenant:</strong> ${refund.tenant?.full_name || "N/A"}</p>
+          <p><strong>Amount:</strong> KES ${refundable}</p>
+          <p class="text-muted">This action cannot be undone.</p>
+        `,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Finalize",
+        confirmButtonColor: "#198754",
+      });
+
+      if (!result.isConfirmed) return;
+
+      try {
+        await axios.post(`/api/refunds/${refund.refund_id}/finalize`);
+
+        toast.fire({ icon: "success", title: "Refund finalized" });
+
+        // 🔥 Clean reactive refresh
+        await this.loadRefunds();
+
+      } catch (e) {
+        console.error(e);
+        Swal.fire({
+          icon: "error",
+          title: "Failed",
+          text: "Could not finalize refund",
         });
-
-        if (!result.isConfirmed) return;
-
-        try {
-            await axios.post(`/api/deposits/${deposit.id}/finalize-refund`);
-
-            toast.fire({ icon: "success", title: "Refund finalized" });
-            this.loadRefunds();
-        } catch (e) {
-            Swal.fire({ icon: "error", title: "Failed", text: "Could not finalize refund" });
-            console.error(e);
-        }
+      }
     },
 
-    viewBreakdown(deposit) {
-      this.selectedDeposit = deposit;
-      new bootstrap.Modal(document.getElementById("refundBreakdownModal")).show();
+    // -------------------------
+    // MODAL
+    // -------------------------
+    viewBreakdown(refund) {
+      this.selectedRefund = refund;
+
+      const modal = new bootstrap.Modal(
+        document.getElementById("refundBreakdownModal")
+      );
+
+      modal.show();
     },
   },
 
-  mounted() { this.loadRefunds(); },
+  mounted() {
+    this.loadRefunds();
+  },
 };
 </script>

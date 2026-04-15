@@ -127,7 +127,7 @@ export default {
         {
           label: 'Finance & Settlements',
           icon: 'bi-cash-coin',
-          roles: ['admin', 'landlord'],
+          roles: ['admin', 'landlord','manager'],
           children: [
             { label: 'Deposits', to: '/deposits' },
             { label: 'Deductions', to: '/deductions' },

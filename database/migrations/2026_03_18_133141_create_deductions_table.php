@@ -24,7 +24,7 @@ return new class extends Migration
                 ->nullOnDelete();
 
             $table->text('description')->nullable();
-
+            $table->text('rejection_reason')->nullable();
             $table->decimal('amount', 12, 2);
 
             // 🔥 workflow control (VERY IMPORTANT)

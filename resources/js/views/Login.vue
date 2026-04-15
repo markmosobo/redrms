@@ -193,7 +193,7 @@ export default {
         // Redirect to dashboard
         this.$router.push('/home')
         } else {
-        Swal.fire({
+        toast.fire({
             title: 'Oops!',
             text: response.data.message || 'Login failed. Please try again.',
             icon: 'warning'
@@ -201,7 +201,7 @@ export default {
         }
     } catch (error) {
         this.loading = false
-        Swal.fire({
+        toast.fire({
         title: 'Error',
         text: error.response?.data?.error || 'An error occurred during login. Please try again.',
         icon: 'error'

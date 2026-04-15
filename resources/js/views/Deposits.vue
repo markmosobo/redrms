@@ -154,15 +154,6 @@
                             Receive Payment
                           </a>
 
-                          <!-- REFUND -->
-                          <a
-                            class="dropdown-item"
-                            :class="{ disabled: !canRefund(deposit) }"
-                            @click="canRefund(deposit) && refundDeposit(deposit)"
-                          >
-                            Refund
-                          </a>
-
                         </div>
                       </div>
                     </td>
@@ -378,9 +369,6 @@ export default {
 
       this.loadDeposits();
     },    
-    canRefund(deposit) {
-      return deposit.status === 'pending_refund';
-    },
     // LOAD DEPOSITS
     async loadDeposits() {
       this.initializing = true;
@@ -457,9 +445,6 @@ export default {
       modal.show();
     },
 
-    refundDeposit() {
-      toast.fire({ icon: "info", title: "Refund flow coming next" });
-    }
   },
 
   mounted() {

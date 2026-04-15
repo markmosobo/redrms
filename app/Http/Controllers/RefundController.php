@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Refund;
 use Illuminate\Http\Request;
 use App\Models\Deposit;
+use Illuminate\Support\Facades\DB;
 
 class RefundController extends Controller
 {
@@ -12,58 +14,74 @@ class RefundController extends Controller
      */
     public function refundableDeposits()
     {
-        // Only 'held' deposits are refundable
-        $deposits = Deposit::with([
-            'tenancy.tenant',
-            'tenancy.unit.property',
-            'deductions' => function ($q) {
-                $q->whereNotNull('approved_at'); // Only approved deductions
-            }
-        ])->where('status', 'held')->get();
+        $refunds = Refund::with([
+            'deposit.tenancy.tenant',
+            'deposit.tenancy.unit.property',
+        ])
+        ->where('status', 'pending')
+        ->get();
 
-        // Map data for front-end
-        $data = $deposits->map(function ($deposit) {
-            $totalDeductions = $deposit->deductions->sum('amount');
+        return response()->json(
+            $refunds->map(function ($refund) {
 
-            return [
-                'id' => $deposit->id,
-                'amount_received' => $deposit->amount_received,
-                'status' => $deposit->status,
-                'total_deductions' => $totalDeductions,
-                'deductions' => $deposit->deductions,
-                'tenancy' => $deposit->tenancy,
-            ];
-        });
+                $deposit = $refund->deposit;
 
-        return response()->json($data);
+                return [
+                    'refund_id' => $refund->id,
+                    'deposit_id' => $deposit->id,
+
+                    'tenant' => $deposit->tenancy->tenant ?? null,
+                    'unit' => $deposit->tenancy->unit ?? null,
+                    'property' => $deposit->tenancy->unit->property ?? null,
+
+                    'amount_received' => $deposit->amount_received,
+
+                    'total_deductions' => $deposit->deductions()
+                        ->whereNotNull('approved_at')
+                        ->sum('amount'),
+
+                    'refundable_amount' => $refund->refundable_amount,
+
+                    'status' => $refund->status,
+                ];
+            })
+        );
     }
 
     /**
      * Finalize a refund for a specific deposit
      */
-    public function finalizeDepositFromDeposit(Deposit $deposit)
+    public function finalize(Refund $refund)
     {
-        // Only 'held' deposits can be finalized
-        if ($deposit->status !== 'held') {
+        if ($refund->status !== 'pending') {
             return response()->json([
-                'message' => 'Deposit is not held and cannot be refunded'
-            ], 400);
+                'message' => 'Refund already processed'
+            ], 409);
         }
 
-        // Calculate total approved deductions
-        $totalDeductions = $deposit->deductions()->whereNotNull('approved_at')->sum('amount');
+        // 🔒 wrap in transaction for safety
+        DB::transaction(function () use ($refund) {
 
-        // Refund amount
-        $refundAmount = $deposit->amount_received - $totalDeductions;
+            // 1️⃣ Update refund
+            $refund->update([
+                'status'       => 'approved',
+                'approved_by'  => auth()->id(),
+                'approved_at'  => now(),
+                'refund_date'  => now(),
+            ]);
 
-        // Mark deposit as refunded
-        $deposit->status = 'refunded';
-        $deposit->save();
+            // 2️⃣ Update linked deposit
+            $refund->deposit->update([
+                'status' => 'refunded'
+            ]);
+        });
+
+        // 🔄 reload relations for frontend sync
+        $refund->load('deposit');
 
         return response()->json([
             'message' => 'Refund finalized successfully',
-            'deposit_id' => $deposit->id,
-            'refund_amount' => $refundAmount,
+            'refund'  => $refund
         ]);
     }
 }

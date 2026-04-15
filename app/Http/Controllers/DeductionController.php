@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Deduction;
+use App\Models\Inspection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DeductionController extends Controller
 {
@@ -21,6 +23,8 @@ class DeductionController extends Controller
 
         return response()->json($deductions);
     }
+
+   
 
     /**
      * Store a new deduction
@@ -102,15 +106,75 @@ class DeductionController extends Controller
 
     public function approve(Deduction $deduction)
     {
+        if ($deduction->status === 'approved') {
+            return response()->json(['message' => 'Already approved'], 409);
+        }
+
         $deduction->update([
+            'status' => 'approved',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
         ]);
+
+        $deduction->load('approver', 'deposit.tenancy');
+
+        $deposit = $deduction->deposit;
+
+        if ($deposit) {
+
+            // 1. UPDATE DEPOSIT DEDUCTIONS TOTAL
+            $totalDeducted = Deduction::where('deposit_id', $deposit->id)
+                ->where('status', 'approved')
+                ->sum('amount');
+
+            $balance = $deposit->amount_received - $totalDeducted;
+
+            $deposit->update([
+                'amount_deducted' => $totalDeducted,
+                'balance' => $balance,
+                'status' => 'pending_refund',
+            ]);
+
+            // 2. CREATE OR UPDATE REFUND RECORD
+            $refundAmount = max($balance, 0);
+
+            \App\Models\Refund::updateOrCreate(
+                [
+                    'deposit_id' => $deposit->id,
+                ],
+                [
+                    'refundable_amount' => $refundAmount,
+                    'status' => 'pending',
+                ]
+            );
+        }
 
         return response()->json([
             'approved_by' => $deduction->approved_by,
             'approved_at' => $deduction->approved_at,
             'approver'    => $deduction->approver,
+            'deposit'     => $deposit->fresh(),
         ]);
-    }    
+    } 
+
+    public function reject(Request $request, Deduction $deduction)
+    {
+        $request->validate([
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $deduction->status = 'rejected';
+        $deduction->rejection_reason = $request->reason;
+        $deduction->approved_by = Auth::id(); // same actor field
+        $deduction->approved_at = now(); // action timestamp (or rename if you prefer)
+        $deduction->save();
+
+        return response()->json([
+            'message' => 'Deduction rejected successfully',
+            'approved_by' => $deduction->approved_by,
+            'approved_at' => $deduction->approved_at,
+            'approver' => $deduction->approver,
+            'rejection_reason' => $deduction->rejection_reason,
+        ]);
+    }       
 }

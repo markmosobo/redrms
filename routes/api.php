@@ -53,13 +53,19 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
     Route::post('/tenancies/assign', [TenancyController::class, 'assign']);
 
     Route::post('/deposits/{deposit}/receive', [DepositController::class, 'receive']);
-    Route::get('/deposits/refundable', [RefundController::class, 'refundableDeposits']);
-    Route::post('/deposits/{deposit}/finalize-refund', [RefundController::class, 'finalizeDepositFromDeposit']);
+    Route::get('/refunds/pending', [RefundController::class, 'refundableDeposits']); 
+    Route::post(
+    '/refunds/{refund}/finalize',
+    [RefundController::class, 'finalize']
+    );
     Route::apiResource('deposits', DepositController::class);
 
+    Route::post('/inspections/complete', [InspectionController::class, 'completeInspection']);
+    Route::get('/inspections/by-inspection', [InspectionController::class, 'byInspection']);
     Route::apiResource('inspections', InspectionController::class);
 
     Route::post('/deductions/{deduction}/approve', [DeductionController::class, 'approve']);    
+    Route::post('/deductions/{deduction}/reject', [DeductionController::class, 'reject']);
     Route::apiResource('deductions', DeductionController::class);
 
     Route::apiResource('audit-logs', AuditLogController::class);
@@ -72,5 +78,6 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);      
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']); 
+    
 });

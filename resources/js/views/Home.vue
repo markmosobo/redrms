@@ -48,6 +48,7 @@
                     <th>Unit</th>
                     <th>Status</th>
                     <th>Amount</th>
+
                   </tr>
                 </thead>
 
@@ -101,6 +102,7 @@
         </div>
 
       </div>
+
     </section>
   </Master>
 </template>
@@ -126,6 +128,7 @@ export default {
   },
 
   methods: {
+   
     async fetchDashboard() {
       try {
         const res = await axios.get('/api/dashboard')

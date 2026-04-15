@@ -22,13 +22,14 @@ return new class extends Migration
                 ->constrained('units')
                 ->cascadeOnDelete();
 
-            $table->date('inspection_date');
+            $table->date('inspection_date')->nullable();
 
             $table->longText('notes')->nullable();
 
             $table->foreignId('created_by')
+                ->nullable()
                 ->constrained('users')
-                ->cascadeOnDelete();
+                ->nullOnDelete();
 
             $table->enum('inspection_type', ['move_in', 'move_out']);
 

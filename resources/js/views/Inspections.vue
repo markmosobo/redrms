@@ -55,7 +55,9 @@
                     <td>{{ inspection.tenancy.tenant.full_name }}</td>
                     <td>{{ inspection.tenancy.unit.property.property_name }}</td>
                     <td>{{ inspection.tenancy.unit.unit_number }}</td>
-                    <td>{{ formatDate(inspection.inspection_date) }}</td>
+                    <td>
+                      {{ inspection.inspection_date ? formatDate(inspection.inspection_date) : '-' }}
+                    </td>
                     <td>{{ truncateText(inspection.notes, 30) || '-' }}</td>
                     <td>
                       <span
@@ -65,7 +67,7 @@
                         {{ inspection.inspection_type }}
                       </span>
                     </td>
-                    <td>{{ inspection.creator.full_name }}</td>
+                    <td>{{ inspection.creator?.full_name || 'System' }}</td>
                     <td>
                       <div class="btn-group">
                         <button
@@ -78,8 +80,12 @@
                           <a @click="viewInspection(inspection)" class="dropdown-item">
                             <i class="ri-eye-fill me-2"></i> View
                           </a>
-                          <a @click="editInspection(inspection)" class="dropdown-item">
-                            <i class="ri-pencil-fill me-2"></i> Edit
+                          <a
+                            v-if="inspection.status === 'draft'"
+                            @click="openCompleteModal(inspection)"
+                            class="dropdown-item text-success"
+                          >
+                            <i class="ri-check-line me-2"></i> Complete Inspection
                           </a>
                         </div>
                       </div>
@@ -115,7 +121,7 @@
                   </div>
                   <div class="col-md-6">
                     <strong>Inspection Date</strong><br>
-                    {{ formatDate(selectedInspection.inspection_date) }}
+                    {{ selectedInspection.inspection_date ? formatDate(selectedInspection.inspection_date) : '-' }}
                   </div>
                   <div class="col-md-6">
                     <strong>Type</strong><br>
@@ -132,7 +138,7 @@
                   </div>
                   <div class="col-md-6 mt-2">
                     <strong>Created By</strong><br>
-                    {{ selectedInspection.creator.full_name }}
+                    {{ selectedInspection.creator?.full_name || 'System' }}
                   </div>
                 </div>
               </div>
@@ -211,6 +217,88 @@
             </div>
             </div>
         </div>
+        </div> 
+        
+        <!-- Complete Inspection Modal -->
+        <div class="modal fade" id="completeInspectionModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+              <div class="modal-header">
+                <h5 class="modal-title">Complete Inspection</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <div class="modal-body" v-if="selectedInspection">
+
+                <!-- DAMAGES -->
+                <div class="mb-3">
+                  <label>Damages</label>
+                  <textarea v-model="completeForm.damages" class="form-control"></textarea>
+                </div>
+
+                <!-- DEDUCTIONS LIST -->
+                <div class="mb-3">
+                  <label class="fw-bold">Deductions</label>
+
+                  <div
+                    v-for="(item, index) in completeForm.deductions"
+                    :key="index"
+                    class="row g-2 mb-2"
+                  >
+                    <div class="col-7">
+                      <input
+                        type="text"
+                        class="form-control"
+                        placeholder="Description"
+                        v-model="item.description"
+                      />
+                    </div>
+
+                    <div class="col-4">
+                      <input
+                        type="number"
+                        class="form-control"
+                        placeholder="Amount"
+                        v-model.number="item.amount"
+                      />
+                    </div>
+
+                    <div class="col-1">
+                      <button
+                        class="btn btn-danger btn-sm"
+                        @click="removeDeduction(index)"
+                      >
+                        X
+                      </button>
+                    </div>
+                  </div>
+
+                  <button class="btn btn-sm btn-outline-primary" @click="addDeduction">
+                    + Add Deduction
+                  </button>
+                </div>
+
+                <!-- REMARKS -->
+                <div class="mb-3">
+                  <label>Remarks</label>
+                  <textarea v-model="completeForm.remarks" class="form-control"></textarea>
+                </div>
+
+              </div>
+
+              <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">
+                  Cancel
+                </button>
+
+                <button class="btn btn-success" @click="completeInspection">
+                  Complete
+                </button>
+              </div>
+
+            </div>
+          </div>
         </div>        
 
       </div>
@@ -241,6 +329,11 @@ export default {
   data() {
     return {
         inspections: [],
+        completeForm: {
+          damages: '',
+          deductions: [],
+          remarks: ''
+        },
         selectedInspection: null,
         tenancies: [],
         inspectionForm: {
@@ -254,6 +347,58 @@ export default {
     };
   },
   methods: {
+    addDeduction() {
+      this.completeForm.deductions.push({
+        description: '',
+        amount: 0
+      })
+    },
+
+    removeDeduction(index) {
+      this.completeForm.deductions.splice(index, 1)
+    },    
+    openCompleteModal(inspection) {
+      this.selectedInspection = inspection
+
+      this.completeForm = {
+        damages: inspection.notes || '',
+        deductions: [],
+        remarks: ''
+      }
+
+      const modal = new bootstrap.Modal(
+        document.getElementById('completeInspectionModal')
+      )
+
+      modal.show()
+    }, 
+    async completeInspection() {
+      try {
+        await axios.post('/api/inspections/complete', {
+          inspection_id: this.selectedInspection.id,
+          damages: this.completeForm.damages,
+          deductions: this.completeForm.deductions,
+          remarks: this.completeForm.remarks
+        })
+
+        toast.fire({
+          icon: 'success',
+          title: 'Inspection completed'
+        })
+
+        bootstrap.Modal.getInstance(
+          document.getElementById('completeInspectionModal')
+        ).hide()
+
+        this.loadInspections()
+
+      } catch (err) {
+        toast.fire({
+          icon: 'error',
+          title: 'Failed to complete inspection'
+        })
+      }
+    },       
     // Format date as DD/MM/YYYY
     formatDate(dateStr) {
         if (!dateStr) return '';
