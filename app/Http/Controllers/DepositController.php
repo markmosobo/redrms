@@ -4,39 +4,39 @@ namespace App\Http\Controllers;
 
 use App\Models\Deposit;
 use App\Models\Tenancy;
-use App\Models\Notification;
 use App\Models\Refund;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class DepositController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
 
     /**
-     * Display a listing of the resource.
+     * LIST
      */
     public function index()
     {
-        $deposits = Deposit::with([
-            'tenancy.tenant',
-            'tenancy.unit.property',
-            'deductions'
-        ])->get();
-
-        return response()->json($deposits);
+        return response()->json(
+            Deposit::with([
+                'tenancy.tenant',
+                'tenancy.unit.property',
+                'deductions'
+            ])->get()
+        );
     }
 
     /**
-     * Store a newly created resource in storage.
+     * CREATE DEPOSIT (manual override if needed)
      */
     public function store(Request $request)
     {
         $request->validate([
             'tenancy_id'      => 'required|exists:tenancies,id',
-            'amount_received' => 'required|numeric|min:0',
-            'received_date'   => 'nullable|date',
+            'amount_received'  => 'required|numeric|min:0',
+            'received_date'    => 'nullable|date',
         ]);
 
         $deposit = Deposit::create([
@@ -46,9 +46,27 @@ class DepositController extends Controller
             'status'          => 'active',
         ]);
 
-        $this->audit(
-            'DEPOSIT_CREATED: #' . $deposit->id .
-            ' amount=' . number_format($deposit->amount_received, 2)
+        $this->audit('DEPOSIT_CREATED', auth()->id());
+
+        $deposit->load('tenancy.unit');
+
+        // 🔔 NOTIFICATIONS
+        $this->notifyUser(
+            $deposit->tenancy->tenant_id,
+            'Deposit Recorded',
+            'Your deposit has been recorded for Unit ' . $deposit->tenancy->unit->unit_number,
+            'deposit_created',
+            $deposit->id,
+            'deposit'
+        );
+
+        $this->notifyRoles(
+            ['manager'],
+            'Deposit Created',
+            'A deposit has been recorded for Unit ' . $deposit->tenancy->unit->unit_number,
+            'deposit_created',
+            $deposit->id,
+            'deposit'
         );
 
         return response()->json([
@@ -58,52 +76,52 @@ class DepositController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * RECEIVE PAYMENT (IMPORTANT FLOW)
      */
-    public function show(string $id)
+    public function receive(Request $request, Deposit $deposit)
     {
-        $deposit = Deposit::with([
-            'tenancy.tenant',
-            'tenancy.unit.property',
-            'deductions'
-        ])->findOrFail($id);
-
-        return response()->json($deposit);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        $deposit = Deposit::findOrFail($id);
-
         $request->validate([
-            'amount_received' => 'sometimes|numeric|min:0',
-            'received_date'   => 'sometimes|date',
-            'status'          => 'sometimes|in:held,partially_deducted,refunded',
+            'amount' => 'required|numeric|min:1'
         ]);
 
-        $old = $deposit->only([
-            'amount_received',
-            'received_date',
-            'status'
-        ]);
+        $deposit->amount_received += $request->amount;
+        $deposit->received_date = now();
 
-        $deposit->update($request->only([
-            'amount_received',
-            'received_date',
-            'status'
-        ]));
+        $deposit->current_balance =
+            max(0, $deposit->required_amount - $deposit->amount_received);
 
-        $this->audit(
-            'DEPOSIT_UPDATED: #' . $deposit->id .
-            ' old=' . json_encode($old) .
-            ' new=' . json_encode($deposit->only([
-                'amount_received',
-                'received_date',
-                'status'
-            ]))
+        $deposit->status =
+            $deposit->amount_received >= $deposit->required_amount
+                ? 'held'
+                : 'active';
+
+        $deposit->save();
+
+        $this->audit('DEPOSIT_PAYMENT_RECEIVED', auth()->id());
+
+        $deposit->load('tenancy.unit');
+
+        // 🔔 TENANT NOTIFICATION
+        $this->notifyUser(
+            $deposit->tenancy->tenant_id,
+            'Deposit Payment Received',
+            'KES ' . $request->amount .
+            ' received for Unit ' . $deposit->tenancy->unit->unit_number .
+            '. Balance: KES ' . $deposit->current_balance,
+            'deposit_payment',
+            $deposit->id,
+            'deposit'
+        );
+
+        // 🔔 MANAGERS
+        $this->notifyRoles(
+            ['manager'],
+            'Deposit Payment Update',
+            'Payment received for Unit ' . $deposit->tenancy->unit->unit_number .
+            ' (KES ' . $request->amount . ')',
+            'deposit_payment',
+            $deposit->id,
+            'deposit'
         );
 
         return response()->json([
@@ -113,42 +131,22 @@ class DepositController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        $deposit = Deposit::findOrFail($id);
-
-        $this->audit(
-            'DEPOSIT_DELETED: #' . $deposit->id
-        );
-
-        $deposit->delete();
-
-        return response()->json([
-            'message' => 'Deposit deleted successfully'
-        ]);
-    }
-
-    /**
-     * Finalize deposit and compute refund
+     * FINALIZE DEPOSIT
      */
     public function finalizeDeposit($depositId)
     {
         $result = DB::transaction(function () use ($depositId) {
 
-            $deposit = Deposit::with(['deductions', 'refund'])
+            $deposit = Deposit::with(['tenancy.unit', 'tenancy.tenant', 'deductions'])
                 ->lockForUpdate()
                 ->findOrFail($depositId);
 
-            // Prevent double finalization
             if ($deposit->refund) {
                 abort(400, 'Deposit already finalized');
             }
 
-            // Ensure deductions approved
             if ($deposit->deductions()->whereNull('approved_at')->exists()) {
-                abort(400, 'All deductions must be approved before finalizing');
+                abort(400, 'All deductions must be approved first');
             }
 
             $totalDeductions = $deposit->deductions()->sum('amount');
@@ -171,6 +169,36 @@ class DepositController extends Controller
                     : 'refunded',
             ]);
 
+            // 🔔 NOTIFY TENANT
+            $this->notifyUser(
+                $deposit->tenancy->tenant_id,
+                'Deposit Finalized',
+                'Your deposit has been finalized. Refund processing is underway.',
+                'deposit_finalized',
+                $deposit->id,
+                'deposit'
+            );
+
+            // 🔔 NOTIFY MANAGER
+            $this->notifyRoles(
+                ['manager'],
+                'Deposit Finalized',
+                'Deposit finalized for Unit ' . $deposit->tenancy->unit->unit_number,
+                'deposit_finalized',
+                $deposit->id,
+                'deposit'
+            );
+
+            // 🔔 NOTIFY LANDLORD
+            $this->notifyRoles(
+                ['landlord'],
+                'Refund Processing Required',
+                'Deposit for Unit ' . $deposit->tenancy->unit->unit_number . ' is ready for refund approval',
+                'deposit_finalized',
+                $deposit->id,
+                'deposit'
+            );
+
             return [
                 'deposit' => $deposit,
                 'refund'  => $refund,
@@ -178,64 +206,12 @@ class DepositController extends Controller
             ];
         });
 
-        $this->audit(
-            'DEPOSIT_FINALIZED: #' . $result['deposit']->id .
-            ' refundable=' . number_format($result['amount'], 2)
-        );
+        $this->audit('DEPOSIT_FINALIZED', auth()->id());
 
         return response()->json([
             'deposit_id'        => $result['deposit']->id,
-            'deposit_amount'    => $result['deposit']->amount_received,
-            'total_deductions'  => $result['deposit']->deductions()->sum('amount'),
             'refundable_amount' => $result['amount'],
             'refund'            => $result['refund'],
-        ]);
-    }
-
-    /**
-     * Receive deposit payment
-     */
-    public function receive(Request $request, Deposit $deposit)
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:1'
-        ]);
-
-        $deposit->amount_received += $request->amount;
-        $deposit->received_date = now();
-
-        $deposit->current_balance =
-            max(0, $deposit->required_amount - $deposit->amount_received);
-
-        if ($deposit->amount_received >= $deposit->required_amount) {
-            $deposit->status = 'held';
-        } else {
-            $deposit->status = 'active';
-        }
-
-        $deposit->save();
-
-        $this->audit(
-            'DEPOSIT_PAYMENT_RECEIVED: #' . $deposit->id .
-            ' amount=' . number_format($request->amount, 2)
-        );
-
-        // Safe notification (null check)
-        if ($deposit->tenancy) {
-            Notification::create([
-                'user_id' => $deposit->tenancy->tenant_id,
-                'title'   => 'Deposit Payment Received',
-                'message' => 'KES ' . $request->amount .
-                    ' received. Balance: KES ' . $deposit->current_balance,
-                'type'    => 'deposit_received',
-                'resource_type' => 'deposit',
-                'resource_id'   => $deposit->id,
-            ]);
-        }
-
-        return response()->json([
-            'message' => 'Deposit updated successfully',
-            'data'    => $deposit
         ]);
     }
 }

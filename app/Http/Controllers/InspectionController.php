@@ -8,10 +8,11 @@ use App\Models\Deposit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class InspectionController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
 
     /**
      * Display inspections
@@ -29,7 +30,7 @@ class InspectionController extends Controller
     }
 
     /**
-     * Store inspection
+     * STORE INSPECTION (MANAGER / SYSTEM)
      */
     public function store(Request $request)
     {
@@ -48,14 +49,36 @@ class InspectionController extends Controller
             'created_by'      => auth()->id(),
         ]);
 
-        $this->audit(
-            'INSPECTION_CREATED',
-            json_encode([
-                'inspection_id'   => $inspection->id,
-                'tenancy_id'      => $inspection->tenancy_id,
-                'inspection_type' => $inspection->inspection_type,
-                'inspection_date' => $inspection->inspection_date,
-            ])
+        $inspection->load('tenancy.unit', 'tenancy.tenant');
+
+        $this->audit('INSPECTION_CREATED', auth()->id());
+
+        // 🔔 NOTIFICATIONS (VERY IMPORTANT)
+        $this->notifyUser(
+            $inspection->tenancy->tenant_id,
+            'Inspection Scheduled',
+            'Your property inspection has been scheduled for ' . $inspection->inspection_date,
+            'inspection_scheduled',
+            $inspection->id,
+            'inspection'
+        );
+
+        $this->notifyRoles(
+            ['manager'],
+            'Inspection Scheduled',
+            'A move-' . $inspection->inspection_type . ' inspection has been scheduled for Unit ' . $inspection->tenancy->unit->unit_number,
+            'inspection_scheduled',
+            $inspection->id,
+            'inspection'
+        );
+
+        $this->notifyRoles(
+            ['landlord'],
+            'Inspection Created',
+            'An inspection was scheduled for Unit ' . $inspection->tenancy->unit->unit_number,
+            'inspection_scheduled',
+            $inspection->id,
+            'inspection'
         );
 
         return response()->json([
@@ -65,88 +88,7 @@ class InspectionController extends Controller
     }
 
     /**
-     * Show inspection
-     */
-    public function show(string $id)
-    {
-        return response()->json(
-            Inspection::with([
-                'tenancy.tenant',
-                'tenancy.unit.property',
-                'creator',
-                'deductions'
-            ])->findOrFail($id)
-        );
-    }
-
-    /**
-     * Update inspection
-     */
-    public function update(Request $request, string $id)
-    {
-        $inspection = Inspection::findOrFail($id);
-
-        $request->validate([
-            'inspection_date' => 'sometimes|date',
-            'notes'           => 'nullable|string',
-            'inspection_type' => 'sometimes|in:move_in,move_out',
-        ]);
-
-        $old = $inspection->only([
-            'inspection_date',
-            'notes',
-            'inspection_type'
-        ]);
-
-        $inspection->update($request->only([
-            'inspection_date',
-            'notes',
-            'inspection_type'
-        ]));
-
-        $this->audit(
-            'INSPECTION_UPDATED',
-            json_encode([
-                'inspection_id' => $inspection->id,
-                'old' => $old,
-                'new' => $inspection->only([
-                    'inspection_date',
-                    'notes',
-                    'inspection_type'
-                ])
-            ])
-        );
-
-        return response()->json([
-            'message' => 'Inspection updated successfully',
-            'data'    => $inspection
-        ]);
-    }
-
-    /**
-     * Delete inspection
-     */
-    public function destroy(string $id)
-    {
-        $inspection = Inspection::findOrFail($id);
-
-        $this->audit(
-            'INSPECTION_DELETED',
-            json_encode([
-                'inspection_id' => $inspection->id,
-                'tenancy_id'    => $inspection->tenancy_id
-            ])
-        );
-
-        $inspection->delete();
-
-        return response()->json([
-            'message' => 'Inspection deleted successfully'
-        ]);
-    }
-
-    /**
-     * Complete inspection (no deductions)
+     * COMPLETE INSPECTION (NO DEDUCTIONS)
      */
     public function complete(Request $request)
     {
@@ -164,21 +106,39 @@ class InspectionController extends Controller
                 'status' => 'deductions_applied',
             ]);
 
-            Inspection::where('tenancy_id', $deposit->tenancy_id)
+            $inspection = Inspection::where('tenancy_id', $deposit->tenancy_id)
                 ->where('inspection_type', 'move_out')
-                ->update([
+                ->first();
+
+            if ($inspection) {
+                $inspection->update([
                     'notes'  => $request->damages . "\n" . $request->remarks,
                     'status' => 'completed',
                 ]);
+
+                // 🔔 NOTIFY TENANT
+                $this->notifyUser(
+                    $inspection->tenancy->tenant_id,
+                    'Inspection Completed',
+                    'Your move-out inspection is complete. Deposit processing will follow.',
+                    'inspection_completed',
+                    $inspection->id,
+                    'inspection'
+                );
+
+                // 🔔 NOTIFY MANAGERS
+                $this->notifyRoles(
+                    ['manager'],
+                    'Inspection Completed',
+                    'Move-out inspection completed for Unit ' . $inspection->tenancy->unit->unit_number,
+                    'inspection_completed',
+                    $inspection->id,
+                    'inspection'
+                );
+            }
         });
 
-        $this->audit(
-            'INSPECTION_COMPLETED',
-            json_encode([
-                'deposit_id' => $deposit->id,
-                'tenancy_id'  => $deposit->tenancy_id
-            ])
-        );
+        $this->audit('INSPECTION_COMPLETED', auth()->id());
 
         return response()->json([
             'message' => 'Inspection completed successfully'
@@ -186,7 +146,7 @@ class InspectionController extends Controller
     }
 
     /**
-     * Complete inspection with deductions
+     * COMPLETE INSPECTION WITH DEDUCTIONS
      */
     public function completeInspection(Request $request)
     {
@@ -195,23 +155,21 @@ class InspectionController extends Controller
             'damages'       => 'nullable|string',
             'remarks'       => 'nullable|string',
             'deductions'    => 'nullable|array',
-            'deductions.*.description' => 'nullable|string',
-            'deductions.*.amount'      => 'required|numeric|min:0',
+            'deductions.*.amount' => 'required|numeric|min:0',
         ]);
 
-        $inspection = Inspection::findOrFail($request->inspection_id);
+        $inspection = Inspection::with('tenancy.unit')->findOrFail($request->inspection_id);
 
         DB::transaction(function () use ($request, $inspection) {
 
             $inspection->update([
-                'notes' => trim(
-                    ($request->damages ?? '') . "\n" . ($request->remarks ?? '')
-                ),
+                'notes' => trim(($request->damages ?? '') . "\n" . ($request->remarks ?? '')),
                 'status' => 'completed',
                 'inspection_date' => now(),
                 'created_by' => auth()->id(),
             ]);
 
+            // Create deductions
             if (!empty($request->deductions)) {
                 foreach ($request->deductions as $item) {
                     Deduction::create([
@@ -231,45 +189,41 @@ class InspectionController extends Controller
                     'status' => 'deductions_applied'
                 ]);
             }
+
+            // 🔔 NOTIFICATIONS
+
+            $this->notifyUser(
+                $inspection->tenancy->tenant_id,
+                'Inspection Completed with Deductions',
+                'Your inspection is complete. Deductions are being processed.',
+                'inspection_deductions',
+                $inspection->id,
+                'inspection'
+            );
+
+            $this->notifyRoles(
+                ['manager'],
+                'Inspection Completed with Deductions',
+                'Deductions have been recorded for Unit ' . $inspection->tenancy->unit->unit_number,
+                'inspection_deductions',
+                $inspection->id,
+                'inspection'
+            );
+
+            $this->notifyRoles(
+                ['landlord'],
+                'Deposit Processing Required',
+                'Unit ' . $inspection->tenancy->unit->unit_number . ' has deductions pending approval.',
+                'inspection_deductions',
+                $inspection->id,
+                'inspection'
+            );
         });
 
-        $this->audit(
-            'INSPECTION_COMPLETED_WITH_DEDUCTIONS | ' . json_encode([
-                'inspection_id' => $inspection->id,
-                'deductions_count' => count($request->deductions ?? [])
-            ]),
-            auth()->id()
-        );
+        $this->audit('INSPECTION_COMPLETED_WITH_DEDUCTIONS', auth()->id());
 
         return response()->json([
             'message' => 'Inspection completed with deductions'
         ]);
-    }
-
-    /**
-     * Grouped inspection view
-     */
-    public function byInspection()
-    {
-        return response()->json(
-            Inspection::with([
-                'tenancy.tenant',
-                'tenancy.unit.property',
-                'deductions',
-                'deductions.approver'
-            ])
-            ->where('inspection_type', 'move_out')
-            ->get()
-            ->map(function ($inspection) {
-                return [
-                    'inspection_id' => $inspection->id,
-                    'tenant'        => $inspection->tenancy->tenant,
-                    'unit'          => $inspection->tenancy->unit,
-                    'inspection_date' => $inspection->inspection_date,
-                    'total_deductions' => $inspection->deductions->sum('amount'),
-                    'deductions'    => $inspection->deductions,
-                ];
-            })
-        );
     }
 }

@@ -8,13 +8,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class AuthController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
 
     /**
-     * Register
+     * REGISTER
      */
     public function register(Request $request)
     {
@@ -23,6 +24,7 @@ class AuthController extends Controller
             'last_name'  => 'required|string|max:100',
             'email'      => 'required|string|email|max:100|unique:users',
             'password'   => 'required|string|min:6',
+            'role'       => 'nullable|in:tenant,landlord,manager,admin'
         ]);
 
         if ($validator->fails()) {
@@ -42,10 +44,37 @@ class AuthController extends Controller
 
         $token = auth('api')->login($user);
 
+        // 🔥 AUDIT
         $this->audit(
             'USER_REGISTERED: ' . $user->full_name,
             $user->id
         );
+
+        // 🔔 NOTIFICATIONS (ONLY IMPORTANT EVENT)
+
+        // If tenant registers → notify managers/admins
+        if ($user->role === 'tenant') {
+            $this->notifyRoles(
+                ['manager', 'admin'],
+                'New Tenant Registered',
+                $user->full_name . ' has registered as a tenant.',
+                'user_registered',
+                $user->id,
+                'user'
+            );
+        }
+
+        // If landlord registers → notify admin only
+        if ($user->role === 'landlord') {
+            $this->notifyRoles(
+                ['admin'],
+                'New Landlord Registered',
+                $user->full_name . ' has registered as a landlord.',
+                'user_registered',
+                $user->id,
+                'user'
+            );
+        }
 
         return response()->json([
             'status'  => 'success',
@@ -56,7 +85,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Login
+     * LOGIN
      */
     public function login(Request $request)
     {
@@ -73,6 +102,8 @@ class AuthController extends Controller
             $user->id
         );
 
+        // ❌ NO NOTIFICATION (intentional)
+
         return response()->json([
             'status'      => 'success',
             'user'        => $user,
@@ -83,7 +114,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Logout
+     * LOGOUT
      */
     public function logout()
     {
@@ -104,6 +135,8 @@ class AuthController extends Controller
                 $user->id
             );
 
+            // ❌ NO NOTIFICATION
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'User logged out successfully.'
@@ -118,7 +151,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Current user
+     * CURRENT USER
      */
     public function me()
     {
@@ -129,7 +162,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Refresh token
+     * REFRESH TOKEN
      */
     public function refresh()
     {

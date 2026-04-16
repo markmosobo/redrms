@@ -6,13 +6,14 @@ use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class PropertyController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
 
     /**
-     * Display a listing of the resource.
+     * LIST
      */
     public function index()
     {
@@ -26,7 +27,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * Store a newly created resource.
+     * CREATE PROPERTY
      */
     public function store(Request $request)
     {
@@ -54,6 +55,28 @@ class PropertyController extends Controller
             ])
         );
 
+        // 🔔 NOTIFICATIONS
+
+        // Notify landlord
+        $this->notifyUser(
+            $property->landlord_id,
+            'Property Created',
+            'Your property "' . $property->property_name . '" has been successfully registered.',
+            'property_created',
+            $property->id,
+            'property'
+        );
+
+        // Notify managers
+        $this->notifyRoles(
+            ['manager'],
+            'New Property Added',
+            'A new property "' . $property->property_name . '" has been added in the system.',
+            'property_created',
+            $property->id,
+            'property'
+        );
+
         return response()->json([
             'message' => 'Property created successfully',
             'data'    => $property
@@ -61,16 +84,17 @@ class PropertyController extends Controller
     }
 
     /**
-     * Show resource.
+     * SHOW
      */
     public function show(string $id)
     {
-        $property = Property::with('landlord')->findOrFail($id);
-        return response()->json($property);
+        return response()->json(
+            Property::with('landlord')->findOrFail($id)
+        );
     }
 
     /**
-     * Update resource.
+     * UPDATE PROPERTY
      */
     public function update(Request $request, string $id)
     {
@@ -111,6 +135,26 @@ class PropertyController extends Controller
             ])
         );
 
+        // 🔔 NOTIFICATIONS
+
+        $this->notifyUser(
+            $property->landlord_id,
+            'Property Updated',
+            'Your property "' . $property->property_name . '" has been updated.',
+            'property_updated',
+            $property->id,
+            'property'
+        );
+
+        $this->notifyRoles(
+            ['manager'],
+            'Property Updated',
+            'Property "' . $property->property_name . '" has been updated.',
+            'property_updated',
+            $property->id,
+            'property'
+        );
+
         return response()->json([
             'message' => 'Property updated successfully',
             'data'    => $property
@@ -118,7 +162,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * Delete resource.
+     * DELETE PROPERTY
      */
     public function destroy(string $id)
     {
@@ -134,6 +178,26 @@ class PropertyController extends Controller
             ])
         );
 
+        // 🔔 NOTIFICATIONS BEFORE DELETE
+
+        $this->notifyUser(
+            $property->landlord_id,
+            'Property Deleted',
+            'Your property "' . $property->property_name . '" has been removed from the system.',
+            'property_deleted',
+            $property->id,
+            'property'
+        );
+
+        $this->notifyRoles(
+            ['manager'],
+            'Property Removed',
+            'A property has been deleted from the system.',
+            'property_deleted',
+            $property->id,
+            'property'
+        );
+
         $property->delete();
 
         return response()->json([
@@ -141,6 +205,9 @@ class PropertyController extends Controller
         ]);
     }
 
+    /**
+     * LANDLORD PROPERTIES
+     */
     public function landlordProperties(User $landlord)
     {
         return $landlord->properties()
@@ -149,6 +216,9 @@ class PropertyController extends Controller
             ->get();
     }
 
+    /**
+     * MANAGER PROPERTIES
+     */
     public function managerProperties($managerId)
     {
         return Property::where('manager_id', $managerId)
@@ -157,6 +227,9 @@ class PropertyController extends Controller
             ->get();
     }
 
+    /**
+     * CREATE PROPERTY FOR LANDLORD
+     */
     public function storeProperty(Request $request, User $landlord)
     {
         $property = $landlord->properties()->create([
@@ -174,9 +247,21 @@ class PropertyController extends Controller
             ])
         );
 
+        $this->notifyUser(
+            $landlord->id,
+            'Property Created',
+            'A new property "' . $property->property_name . '" has been created for you.',
+            'property_created',
+            $property->id,
+            'property'
+        );
+
         return response()->json($property, 201);
     }
 
+    /**
+     * ASSIGN TO MANAGER
+     */
     public function assignToManager(Request $request, $managerId)
     {
         $request->validate([
@@ -196,6 +281,28 @@ class PropertyController extends Controller
             ])
         );
 
-        return response()->json(['message' => 'Assigned successfully']);
+        // 🔔 NOTIFICATIONS
+
+        $this->notifyUser(
+            $managerId,
+            'Property Assignment',
+            'You have been assigned new property(ies).',
+            'property_assigned',
+            null,
+            'property'
+        );
+
+        $this->notifyRoles(
+            ['landlord'],
+            'Property Manager Assigned',
+            'A manager has been assigned to property(ies).',
+            'property_assigned',
+            null,
+            'property'
+        );
+
+        return response()->json([
+            'message' => 'Assigned successfully'
+        ]);
     }
 }

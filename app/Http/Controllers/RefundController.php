@@ -64,10 +64,10 @@ class RefundController extends Controller
         DB::transaction(function () use ($refund) {
 
             $refund->update([
-                'status'       => 'approved',
-                'approved_by'  => auth()->id(),
-                'approved_at'  => now(),
-                'refund_date'  => now(),
+                'status'      => 'approved',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'refund_date' => now(),
             ]);
 
             $refund->deposit->update([
@@ -75,7 +75,6 @@ class RefundController extends Controller
             ]);
         });
 
-        // 🔥 AUDIT AFTER SUCCESS (VERY IMPORTANT)
         $this->audit(
             'REFUND_FINALIZED: refund_id=' . $refund->id .
             ', deposit_id=' . $refund->deposit_id .
@@ -83,7 +82,41 @@ class RefundController extends Controller
             ', approved_by=' . auth()->id()
         );
 
-        $refund->load('deposit');
+        $refund->load('deposit.tenancy.unit', 'deposit.tenancy.tenant');
+
+        $tenancy = $refund->deposit->tenancy;
+        $unit = $tenancy->unit;
+
+        // 🔔 1. Notify TENANT
+        $this->notifyUser(
+            $tenancy->tenant_id,
+            'Refund Approved',
+            'Your deposit refund of KES ' . $refund->refundable_amount .
+            ' for Unit ' . $unit->unit_number . ' has been approved.',
+            'refund_approved',
+            $refund->id,
+            'refund'
+        );
+
+        // 🔔 2. Notify MANAGERS
+        $this->notifyRoles(
+            ['manager'],
+            'Refund Processed',
+            'Refund for Unit ' . $unit->unit_number . ' has been finalized.',
+            'refund_processed',
+            $refund->id,
+            'refund'
+        );
+
+        // 🔔 3. Notify LANDLORDS
+        $this->notifyRoles(
+            ['landlord'],
+            'Deposit Refunded',
+            'Deposit for Unit ' . $unit->unit_number . ' has been refunded.',
+            'refund_processed',
+            $refund->id,
+            'refund'
+        );
 
         return response()->json([
             'message' => 'Refund finalized successfully',
