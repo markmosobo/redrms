@@ -14,6 +14,8 @@ import AuditLogs from '../views/AuditLogs.vue';
 import Profile from '../views/Profile.vue';
 import Managers from '../views/Managers.vue';
 import Tenants from '../views/Tenants.vue';
+import TerminationRequests from '../views/TerminationRequests.vue';
+import Notifications from '../views/Notifications.vue';
 
 const routes = [
   // Public routes
@@ -31,6 +33,8 @@ const routes = [
   { path: '/deductions', name: 'deductions', component: Deductions, meta: { requiresAuth: true } },
   { path: '/refunds', name: 'refunds', component: Refunds, meta: { requiresAuth: true } },
   { path: '/audit-logs', name: 'audit-logs', component: AuditLogs, meta: { requiresAuth: true } },
+  { path: '/termination-requests', name: 'termination-requests', component: TerminationRequests, meta: { requiresAuth: true } },
+  { path: '/notifications', name: 'notifications', component: Notifications, meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: Profile, meta: { requiresAuth: true } },
 ];
 

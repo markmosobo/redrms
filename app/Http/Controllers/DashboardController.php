@@ -13,12 +13,13 @@ use App\Traits\Auditable;
 class DashboardController extends Controller
 {
     use Auditable;
+
     public function index(Request $request)
     {
         $user = $request->user();
 
         $this->audit(
-            $user->name . ' viewed dashboard (' . $user->role . ')',
+            $user->full_name . ' viewed dashboard (' . $user->role . ')',
             $user->id
         );
 
@@ -37,11 +38,6 @@ class DashboardController extends Controller
     {
         return response()->json([
             'role' => 'admin',
-
-            'summary' => [
-                'total' => null,
-                'breakdown' => [],
-            ],
 
             'cards' => [
                 [
@@ -82,33 +78,30 @@ class DashboardController extends Controller
 
     protected function landlordDashboard(User $user)
     {
-        $properties = Property::where('landlord_id', $user->id)->pluck('id');
+        $propertyIds = Property::where('landlord_id', $user->id)->pluck('id');
 
         return response()->json([
             'role' => 'landlord',
 
-            'summary' => [
-                'total' => null,
-                'breakdown' => [],
-            ],
-
             'cards' => [
                 [
                     'title' => 'My Properties',
-                    'value' => $properties->count(),
+                    'value' => $propertyIds->count(),
                     'icon'  => 'bi-buildings',
                     'color' => 'primary',
                 ],
                 [
                     'title' => 'Units',
-                    'value' => Unit::whereIn('property_id', $properties)->count(),
+                    'value' => Unit::whereIn('property_id', $propertyIds)->count(),
                     'icon'  => 'bi-door-open',
                     'color' => 'success',
                 ],
                 [
                     'title' => 'Active Tenancies',
-                    'value' => Tenancy::whereIn('unit_id', function ($q) use ($properties) {
-                        $q->select('id')->from('units')->whereIn('property_id', $properties);
+                    'value' => Tenancy::whereIn('unit_id', function ($q) use ($propertyIds) {
+                        $q->select('id')
+                          ->from('units')
+                          ->whereIn('property_id', $propertyIds);
                     })->count(),
                     'icon'  => 'bi-person-check',
                     'color' => 'info',
@@ -121,29 +114,33 @@ class DashboardController extends Controller
 
     protected function managerDashboard(User $user)
     {
-        $properties = Property::where('manager_id', $user->id)->pluck('id');
-        $actionRequired = Deposit::with(['tenancy.tenant', 'tenancy.unit.property'])
+        $propertyIds = Property::where('manager_id', $user->id)->pluck('id');
+
+        $actionRequired = Deposit::with([
+                'tenancy.tenant',
+                'tenancy.unit.property'
+            ])
             ->whereIn('status', [
                 'under_inspection',
                 'deductions_applied',
                 'pending_refund'
             ])
+            ->latest()
+            ->limit(20)
             ->get();
 
         return response()->json([
             'role' => 'manager',
-            'summary' => [
-                'total' => null,
-                'breakdown' => [],
-            ],
+
             'cards' => [
                 [
                     'title' => 'Managed Properties',
-                    'value' => $properties->count(),
+                    'value' => $propertyIds->count(),
                     'icon'  => 'bi-buildings',
                     'color' => 'primary',
                 ],
             ],
+
             'widgets' => [
                 'action_required_deposits' => $actionRequired
             ]
@@ -154,15 +151,12 @@ class DashboardController extends Controller
 
     protected function tenantDashboard(User $user)
     {
-        $tenancy = Tenancy::where('tenant_id', $user->id)->first();
+        $tenancy = Tenancy::where('tenant_id', $user->id)
+            ->with('unit.property')
+            ->first();
 
         return response()->json([
             'role' => 'tenant',
-
-            'summary' => [
-                'total' => null,
-                'breakdown' => [],
-            ],
 
             'cards' => [
                 [

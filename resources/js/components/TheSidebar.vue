@@ -118,11 +118,16 @@ export default {
         },
 
         {
-          label: 'Inspections',
-          icon: 'bi-clipboard-check',
-          to: '/inspections',
-          roles: ['admin', 'landlord', 'manager']
+          label: 'Workflow',
+          icon: 'bi-diagram-3',
+          roles: ['admin', 'manager', 'landlord'],
+          children: [
+            { label: 'Termination Requests', to: '/termination-requests' },
+            { label: 'Deposits Queue', to: '/deposits?action=queue' },
+            { label: 'Inspection Queue', to: '/inspections?status=pending' }
+          ]
         },
+
 
         {
           label: 'Finance & Settlements',
@@ -140,6 +145,24 @@ export default {
           icon: 'bi-shield-check',
           to: '/audit-logs',
           roles: ['admin']
+        },
+
+        {
+          label: 'Messages',
+          icon: 'bi-bell',
+          roles: ['admin', 'landlord', 'manager', 'tenant'],
+          children: [
+            {
+              label: 'Inbox',
+              to: '/notifications',
+              roles: ['landlord', 'manager', 'tenant']
+            },
+            {
+              label: 'All Messages',
+              to: '/all-notifications',
+              roles: ['admin']
+            }
+          ]
         },
 
         {

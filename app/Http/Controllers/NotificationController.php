@@ -20,6 +20,21 @@ class NotificationController extends Controller
             ->get();
     }
 
+    public function all(Request $request)
+    {
+        $query = Notification::where('user_id', Auth::id());
+
+        if ($request->filter === 'unread') {
+            $query->whereNull('read_at');
+        }
+
+        if ($request->filter === 'read') {
+            $query->whereNotNull('read_at');
+        }
+
+        return $query->latest()->paginate(50);
+    }
+
     /**
      * Create notification (system use)
      */

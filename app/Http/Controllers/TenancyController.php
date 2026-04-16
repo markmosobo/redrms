@@ -10,9 +10,10 @@ use App\Models\User;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Traits\Auditable;
 class TenancyController extends Controller
 {
+    use Auditable;
     public function index()
     {
         $tenancies = Tenancy::with(['tenant', 'unit.property','deposit'])->get();
@@ -65,6 +66,12 @@ class TenancyController extends Controller
                 ->update(['status' => 'active']);
         });
 
+        $this->audit(
+            'TENANCY_CREATED: tenant=' . $request->tenant_id .
+            ', unit=' . $request->unit_id .
+            ', deposit=' . $request->deposit_amount
+        );        
+
         return response()->json([
             'message' => 'Tenancy created successfully',
             'data'    => $tenancy
@@ -87,6 +94,13 @@ class TenancyController extends Controller
     {
         $tenancy = Tenancy::findOrFail($id);
 
+        $old = $tenancy->only([
+            'start_date',
+            'end_date',
+            'deposit_amount',
+            'status'
+        ]);
+
         $request->validate([
             'start_date'     => 'required|date',
             'end_date'       => 'nullable|date|after_or_equal:start_date',
@@ -105,6 +119,17 @@ class TenancyController extends Controller
             $tenancy->unit->update(['status' => 'vacant']);
         }
 
+        $this->audit(
+            'TENANCY_UPDATED: id=' . $tenancy->id .
+            ', old=' . json_encode($old) .
+            ', new=' . json_encode($tenancy->only([
+                'start_date',
+                'end_date',
+                'deposit_amount',
+                'status'
+            ]))
+        );
+
         return response()->json([
             'message' => 'Tenancy updated successfully',
             'data'    => $tenancy
@@ -117,6 +142,13 @@ class TenancyController extends Controller
     public function destroy(string $id)
     {
         $tenancy = Tenancy::findOrFail($id);
+
+        $this->audit(
+            'TENANCY_DELETED: id=' . $tenancy->id .
+            ', tenant_id=' . $tenancy->tenant_id .
+            ', unit_id=' . $tenancy->unit_id .
+            ', deposit_amount=' . $tenancy->deposit_amount
+        );
 
         $tenancy->unit->update(['status' => 'vacant']);
 
@@ -345,4 +377,20 @@ class TenancyController extends Controller
 
         return $deposit;
     }
+
+    public function myActiveTenancy(Request $request)
+    {
+        $tenancy = Tenancy::with(['unit.property'])
+            ->where('tenant_id', auth()->id())
+            ->where('status', 'active')
+            ->first();
+
+        if (!$tenancy) {
+            return response()->json([
+                'message' => 'No active tenancy found'
+            ], 404);
+        }
+
+        return response()->json($tenancy);
+    }    
 }

@@ -61,10 +61,8 @@ class RefundController extends Controller
             ], 409);
         }
 
-        // 🔒 wrap in transaction for safety
         DB::transaction(function () use ($refund) {
 
-            // 1️⃣ Update refund
             $refund->update([
                 'status'       => 'approved',
                 'approved_by'  => auth()->id(),
@@ -72,14 +70,19 @@ class RefundController extends Controller
                 'refund_date'  => now(),
             ]);
 
-            // 2️⃣ Update linked deposit
             $refund->deposit->update([
                 'status' => 'refunded'
             ]);
         });
-        
 
-        // 🔄 reload relations for frontend sync
+        // 🔥 AUDIT AFTER SUCCESS (VERY IMPORTANT)
+        $this->audit(
+            'REFUND_FINALIZED: refund_id=' . $refund->id .
+            ', deposit_id=' . $refund->deposit_id .
+            ', amount=' . $refund->refundable_amount .
+            ', approved_by=' . auth()->id()
+        );
+
         $refund->load('deposit');
 
         return response()->json([

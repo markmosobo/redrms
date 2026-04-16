@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\TerminationRequestController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
@@ -54,10 +55,7 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::post('/deposits/{deposit}/receive', [DepositController::class, 'receive']);
     Route::get('/refunds/pending', [RefundController::class, 'refundableDeposits']); 
-    Route::post(
-    '/refunds/{refund}/finalize',
-    [RefundController::class, 'finalize']
-    );
+    Route::post('/refunds/{refund}/finalize', [RefundController::class, 'finalize']);
     Route::apiResource('deposits', DepositController::class);
 
     Route::post('/inspections/complete', [InspectionController::class, 'completeInspection']);
@@ -68,16 +66,28 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
     Route::post('/deductions/{deduction}/reject', [DeductionController::class, 'reject']);
     Route::apiResource('deductions', DeductionController::class);
 
-    Route::apiResource('audit-logs', AuditLogController::class);
+    Route::get('/audit-logs', [AuditLogController::class, 'index']);
+    Route::get('/audit-logs/{id}', [AuditLogController::class, 'show']);
 
     Route::get('/dashboard',[DashboardController::class, 'index']); 
 
-    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/unread', [NotificationController::class, 'index']);
+    Route::get('/notifications', [NotificationController::class, 'all']);
 
     Route::post('/notifications', [NotificationController::class, 'store']);
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
 
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']); 
+
+    Route::get('/my-active-tenancy', [TenancyController::class, 'myActiveTenancy']);
+    Route::get('/my-termination-request', [TerminationRequestController::class, 'myRequest']);
+
+    Route::post('/termination-requests', [TerminationRequestController::class, 'store']);
+    Route::get('/termination-requests', [TerminationRequestController::class, 'index']);
+    Route::get('/my-termination-requests', [TerminationRequestController::class, 'myRequests']);
+
+    Route::post('/termination-requests/{terminationRequest}/approve', [TerminationRequestController::class, 'approve']);
+    Route::post('/termination-requests/{terminationRequest}/reject', [TerminationRequestController::class, 'reject']);    
     
 });

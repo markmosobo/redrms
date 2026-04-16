@@ -217,7 +217,7 @@ export default {
     },   
     async fetchNotifications() {
       try {
-        const res = await axios.get('/api/notifications')
+        const res = await axios.get('/api/notifications/unread')
 
         this.notifications = res.data
 

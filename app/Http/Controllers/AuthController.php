@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
-use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\SystemLog;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
-use Tymon\JWTAuth\Exceptions\JWTException;
 use App\Traits\Auditable;
 
 class AuthController extends Controller
 {
     use Auditable;
+
     /**
-     * Register a new user and return JWT
+     * Register
      */
     public function register(Request $request)
     {
@@ -35,17 +33,19 @@ class AuthController extends Controller
         }
 
         $user = User::create([
-            'name'       => $request->first_name . ' ' . $request->last_name,
-            'email'      => $request->email,
-            'password'   => Hash::make($request->password),
-            'role'       => $request->role ?? 'user',
-            'status'     => 1,
+            'full_name' => $request->first_name . ' ' . $request->last_name,
+            'email'     => $request->email,
+            'password'  => Hash::make($request->password),
+            'role'      => $request->role ?? 'tenant',
+            'status'    => 1,
         ]);
-
 
         $token = auth('api')->login($user);
 
-        $this->audit($user->name . ' created account', $user->id);
+        $this->audit(
+            'USER_REGISTERED: ' . $user->full_name,
+            $user->id
+        );
 
         return response()->json([
             'status'  => 'success',
@@ -55,9 +55,8 @@ class AuthController extends Controller
         ], 201);
     }
 
-
     /**
-     * Login user and return JWT
+     * Login
      */
     public function login(Request $request)
     {
@@ -67,20 +66,24 @@ class AuthController extends Controller
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
-        //record system log 
-        $this->audit(auth('api')->user()->name . ' logged in');        
+        $user = auth('api')->user();
+
+        $this->audit(
+            'USER_LOGIN: ' . ($user->full_name ?? 'unknown'),
+            $user->id
+        );
 
         return response()->json([
-            'status' => 'success',
-            'user' => auth('api')->user(),
-            'token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60
+            'status'      => 'success',
+            'user'        => $user,
+            'token'       => $token,
+            'token_type'  => 'bearer',
+            'expires_in'  => auth('api')->factory()->getTTL() * 60
         ]);
     }
 
     /**
-     * Logout user (invalidate token)
+     * Logout
      */
     public function logout()
     {
@@ -96,7 +99,10 @@ class AuthController extends Controller
 
             auth('api')->logout();
 
-            $this->audit($user->name . ' logged out', $user->id);
+            $this->audit(
+                'USER_LOGOUT: ' . $user->full_name,
+                $user->id
+            );
 
             return response()->json([
                 'status' => 'success',
@@ -112,11 +118,14 @@ class AuthController extends Controller
     }
 
     /**
-     * Get authenticated user
+     * Current user
      */
     public function me()
     {
-        return response()->json(['status' => 'success', 'user' => auth('api')->user()]);
+        return response()->json([
+            'status' => 'success',
+            'user' => auth('api')->user()
+        ]);
     }
 
     /**
@@ -125,10 +134,10 @@ class AuthController extends Controller
     public function refresh()
     {
         return response()->json([
-            'status' => 'success',
-            'token' => auth('api')->refresh(),
-            'token_type' => 'bearer',
-            'expires_in' => auth('api')->factory()->getTTL() * 60
+            'status'      => 'success',
+            'token'       => auth('api')->refresh(),
+            'token_type'  => 'bearer',
+            'expires_in'  => auth('api')->factory()->getTTL() * 60
         ]);
     }
 }

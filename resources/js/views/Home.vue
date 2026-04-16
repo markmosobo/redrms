@@ -101,7 +101,103 @@
           </div>
         </div>
 
+        <!-- TERMINATION REQUEST CARD (TENANT ONLY) -->
+        <div
+          v-if="role === 'tenant'"
+          class="col-xxl-3 col-md-4 col-sm-6 mb-3"
+        >
+          <div class="card shadow-sm border-danger">
+
+            <div class="card-body">
+
+              <h5 class="card-title text-danger">
+                Termination Request
+              </h5>
+
+              <!-- NO TENANCY -->
+              <div v-if="!tenancy" class="text-muted small">
+                No active tenancy found
+              </div>
+
+              <!-- ACTIVE TENANCY -->
+              <div v-else>
+
+                <!-- 🟡 REQUEST EXISTS -->
+                <div v-if="terminationRequest" class="mb-3">
+
+                  <div class="small text-muted">
+                    Status:
+                    <span class="badge"
+                      :class="{
+                        'bg-warning': terminationRequest.status === 'pending',
+                        'bg-success': terminationRequest.status === 'approved',
+                        'bg-danger': terminationRequest.status === 'rejected'
+                      }"
+                    >
+                      {{ terminationRequest.status }}
+                    </span>
+                  </div>
+
+                  <div class="small mt-2">
+                    <strong>Reason:</strong>
+                    {{ terminationRequest.reason }}
+                  </div>
+
+                  <div v-if="terminationRequest.requested_end_date" class="small">
+                    <strong>Requested End:</strong>
+                    {{ formatDate(terminationRequest.requested_end_date) }}
+                  </div>
+
+                </div>
+
+                <!-- 🟢 NO REQUEST YET -->
+                <button
+                  v-if="!terminationRequest"
+                  class="btn btn-sm btn-danger w-100"
+                  @click="openTerminationModal"
+                >
+                  Request Exit
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      <div v-if="showTerminationModal" class="modal d-block">
+        <div class="modal-dialog">
+          <div class="modal-content p-3">
+
+            <h5>Request Termination</h5>
+
+            <textarea
+              v-model="terminationReason"
+              class="form-control mb-2"
+              placeholder="Reason for leaving..."
+            ></textarea>
+
+            <input
+              type="date"
+              v-model="preferredDate"
+              class="form-control mb-3"
+            />
+
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-secondary" @click="showTerminationModal = false">
+                Cancel
+              </button>
+
+              <button class="btn btn-danger" @click="submitTermination">
+                Submit
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>      
 
     </section>
   </Master>
@@ -123,11 +219,70 @@ export default {
       cards: [],
       widgets: {
         action_required_deposits: []
-      }
+      },
+      
+      tenancy: null,
+      showTerminationModal: false,
+      terminationReason: '',
+      preferredDate: null,
+      terminationRequest: null
     }
   },
 
   methods: {
+    formatDate(date) {
+      return new Date(date).toLocaleDateString()
+    },
+    async loadTerminationRequest() {
+      try {
+        const res = await axios.get('/api/my-termination-request')
+        this.terminationRequest = res.data
+      } catch (e) {
+        this.terminationRequest = null
+      }
+    },    
+    openTerminationModal() {
+      this.showTerminationModal = true
+    },
+
+    async submitTermination() {
+      try {
+        await axios.post('/api/termination-requests', {
+          reason: this.terminationReason,
+          requested_end_date: this.preferredDate
+        })
+
+        this.showTerminationModal = false
+        this.terminationReason = ''
+        this.preferredDate = null
+
+        // 🔥 IMPORTANT: refresh state from backend
+        await this.loadTerminationRequest()
+
+        toast.fire(
+          'Success!',
+          'Termination request submitted successfully',
+          'success'
+        )
+
+      } catch (e) {
+        console.error(e)
+
+        toast.fire(
+          'Error!',
+          e.response?.data?.message || 'Failed to submit request',
+          'error'
+        )
+      }
+    },
+    async loadMyTenancy() {
+      try {
+        const res = await axios.get('/api/my-active-tenancy')
+        this.tenancy = res.data
+      } catch (e) {
+        this.tenancy = null
+      }
+    },    
    
     async fetchDashboard() {
       try {
@@ -146,7 +301,10 @@ export default {
   },
 
   mounted() {
-    this.fetchDashboard()
+    this.fetchDashboard();
+    this.loadMyTenancy();
+    this.loadTerminationRequest();
+
   },
 }
 </script>

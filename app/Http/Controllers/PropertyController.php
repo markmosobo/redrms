@@ -10,18 +10,15 @@ use App\Traits\Auditable;
 class PropertyController extends Controller
 {
     use Auditable;
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        // Fetch all properties with their related landlord
         $properties = Property::with('landlord')->get();
+        $landlords = User::where('role', 'landlord')->get();
 
-        // Fetch all landlords (assuming you have a Landlord model)
-        $landlords = User::where('role','landlord')->get();  
-
-        // Return both in a single JSON response
         return response()->json([
             'properties' => $properties,
             'landlords' => $landlords,
@@ -29,7 +26,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created resource.
      */
     public function store(Request $request)
     {
@@ -48,9 +45,13 @@ class PropertyController extends Controller
         ]);
 
         $this->audit(
-            'PROPERTY_CREATED: ' . $property->property_name,
-            auth()->id(),
-            $property
+            'PROPERTY_CREATED',
+            json_encode([
+                'property_id' => $property->id,
+                'name'        => $property->property_name,
+                'location'    => $property->location,
+                'landlord_id' => $property->landlord_id,
+            ])
         );
 
         return response()->json([
@@ -60,7 +61,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Show resource.
      */
     public function show(string $id)
     {
@@ -69,11 +70,18 @@ class PropertyController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update resource.
      */
     public function update(Request $request, string $id)
     {
         $property = Property::findOrFail($id);
+
+        $old = $property->only([
+            'landlord_id',
+            'property_name',
+            'location',
+            'description'
+        ]);
 
         $request->validate([
             'landlord_id'   => 'required|exists:users,id',
@@ -89,7 +97,19 @@ class PropertyController extends Controller
             'description'   => $request->description,
         ]);
 
-        
+        $this->audit(
+            'PROPERTY_UPDATED',
+            json_encode([
+                'property_id' => $property->id,
+                'old' => $old,
+                'new' => $property->only([
+                    'landlord_id',
+                    'property_name',
+                    'location',
+                    'description'
+                ])
+            ])
+        );
 
         return response()->json([
             'message' => 'Property updated successfully',
@@ -98,18 +118,22 @@ class PropertyController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Delete resource.
      */
     public function destroy(string $id)
     {
         $property = Property::findOrFail($id);
 
         $this->audit(
-            'PROPERTY_DELETED: ' . $property->property_name,
-            auth()->id(),
-            $property
+            'PROPERTY_DELETED',
+            json_encode([
+                'property_id'   => $property->id,
+                'property_name' => $property->property_name,
+                'location'      => $property->location,
+                'landlord_id'   => $property->landlord_id,
+            ])
         );
-        
+
         $property->delete();
 
         return response()->json([
@@ -120,30 +144,39 @@ class PropertyController extends Controller
     public function landlordProperties(User $landlord)
     {
         return $landlord->properties()
-        ->withCount('units')
-        ->latest()
-        ->get();
+            ->withCount('units')
+            ->latest()
+            ->get();
     }
-    
+
     public function managerProperties($managerId)
     {
         return Property::where('manager_id', $managerId)
-        ->withCount('units')
-        ->latest()
-        ->get();
-    }    
-    
+            ->withCount('units')
+            ->latest()
+            ->get();
+    }
+
     public function storeProperty(Request $request, User $landlord)
     {
         $property = $landlord->properties()->create([
-        'property_name' => $request->property_name,
-        'location' => $request->location,
-        'description' => $request->description
+            'property_name' => $request->property_name,
+            'location'      => $request->location,
+            'description'   => $request->description
         ]);
+
+        $this->audit(
+            'PROPERTY_CREATED',
+            json_encode([
+                'property_id' => $property->id,
+                'name' => $property->property_name,
+                'landlord_id' => $landlord->id
+            ])
+        );
 
         return response()->json($property, 201);
     }
-    
+
     public function assignToManager(Request $request, $managerId)
     {
         $request->validate([
@@ -155,6 +188,14 @@ class PropertyController extends Controller
                 'manager_id' => $managerId
             ]);
 
+        $this->audit(
+            'PROPERTY_ASSIGNED_TO_MANAGER',
+            json_encode([
+                'manager_id' => $managerId,
+                'property_ids' => $request->property_ids
+            ])
+        );
+
         return response()->json(['message' => 'Assigned successfully']);
-    }    
+    }
 }

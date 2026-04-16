@@ -3,14 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Deduction;
-use App\Models\Inspection;
+use App\Models\Deposit;
+use App\Models\Refund;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
 
 class DeductionController extends Controller
 {
     use Auditable;
+
     /**
      * List all deductions
      */
@@ -26,8 +28,6 @@ class DeductionController extends Controller
         return response()->json($deductions);
     }
 
-   
-
     /**
      * Store a new deduction
      */
@@ -37,22 +37,25 @@ class DeductionController extends Controller
             'deposit_id'    => 'required|exists:deposits,id',
             'inspection_id' => 'nullable|exists:inspections,id',
             'description'   => 'nullable|string',
-            'amount'        => 'required|numeric',
-            'approved_by'   => 'nullable|exists:users,id',
-            'approved_at'   => 'nullable|date',
+            'amount'        => 'required|numeric|min:0',
         ]);
 
-        $deduction = Deduction::create($request->only([
-            'deposit_id',
-            'inspection_id',
-            'description',
-            'amount',
-            'approved_by',
-            'approved_at',
-        ]));
+        $deduction = Deduction::create([
+            'deposit_id'    => $request->deposit_id,
+            'inspection_id' => $request->inspection_id,
+            'description'   => $request->description,
+            'amount'        => $request->amount,
+            'status'        => 'pending',
+        ]);
 
         $this->audit(
-            'Deduction created (KES ' . number_format($deduction->amount, 2) . ')',
+            'DEDUCTION_CREATED',
+            auth()->id(),
+            [
+                'deduction_id' => $deduction->id,
+                'deposit_id'   => $deduction->deposit_id,
+                'amount'       => $deduction->amount
+            ]
         );
 
         return response()->json([
@@ -66,7 +69,12 @@ class DeductionController extends Controller
      */
     public function show(string $id)
     {
-        $deduction = Deduction::with(['deposit.tenancy.tenant', 'inspection', 'approver'])->findOrFail($id);
+        $deduction = Deduction::with([
+            'deposit.tenancy.tenant',
+            'inspection',
+            'approver'
+        ])->findOrFail($id);
+
         return response()->json($deduction);
     }
 
@@ -77,22 +85,36 @@ class DeductionController extends Controller
     {
         $deduction = Deduction::findOrFail($id);
 
+        if ($deduction->status === 'approved') {
+            return response()->json([
+                'message' => 'Cannot update an approved deduction'
+            ], 409);
+        }
+
         $request->validate([
-            'description'   => 'nullable|string',
-            'amount'        => 'sometimes|numeric',
-            'approved_by'   => 'nullable|exists:users,id',
-            'approved_at'   => 'nullable|date',
+            'description' => 'nullable|string',
+            'amount'      => 'sometimes|numeric|min:0',
+        ]);
+
+        $old = $deduction->only([
+            'description',
+            'amount',
+            'status'
         ]);
 
         $deduction->update($request->only([
             'description',
             'amount',
-            'approved_by',
-            'approved_at',
         ]));
 
         $this->audit(
-            'Deduction #' . $deduction->id . ' updated'
+            'DEDUCTION_UPDATED',
+            auth()->id(),
+            [
+                'deduction_id' => $deduction->id,
+                'old' => $old,
+                'new' => $deduction->only(['description', 'amount', 'status'])
+            ]
         );
 
         return response()->json([
@@ -107,96 +129,128 @@ class DeductionController extends Controller
     public function destroy(string $id)
     {
         $deduction = Deduction::findOrFail($id);
-        $deduction->delete();
+
+        if ($deduction->status === 'approved') {
+            return response()->json([
+                'message' => 'Cannot delete an approved deduction'
+            ], 409);
+        }
 
         $this->audit(
-            'Deduction #' . $deduction->id . ' deleted'
+            'DEDUCTION_DELETED',
+            auth()->id(),
+            [
+                'deduction_id' => $deduction->id,
+                'deposit_id'   => $deduction->deposit_id
+            ]
         );
+
+        $deduction->delete();
 
         return response()->json([
             'message' => 'Deduction deleted successfully'
         ]);
     }
 
+    /**
+     * Approve deduction
+     */
     public function approve(Deduction $deduction)
     {
         if ($deduction->status === 'approved') {
-            return response()->json(['message' => 'Already approved'], 409);
+            return response()->json([
+                'message' => 'Already approved'
+            ], 409);
         }
 
-        $deduction->update([
-            'status' => 'approved',
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($deduction) {
+
+            $deduction->update([
+                'status'       => 'approved',
+                'approved_by'  => auth()->id(),
+                'approved_at'  => now(),
+            ]);
+
+            $deposit = Deposit::with('deductions')->find($deduction->deposit_id);
+
+            if ($deposit) {
+
+                // recalc safely
+                $totalDeducted = $deposit->deductions()
+                    ->where('status', 'approved')
+                    ->sum('amount');
+
+                $balance = max(0, $deposit->amount_received - $totalDeducted);
+
+                $deposit->update([
+                    'amount_deducted' => $totalDeducted,
+                    'balance'          => $balance,
+                    'status'           => 'pending_refund',
+                ]);
+
+                // update or create refund
+                Refund::updateOrCreate(
+                    ['deposit_id' => $deposit->id],
+                    [
+                        'refundable_amount' => $balance,
+                        'status'            => 'pending',
+                    ]
+                );
+            }
+        });
 
         $deduction->load('approver', 'deposit.tenancy');
 
         $this->audit(
-            'Deduction #' . $deduction->id . ' approved (KES ' . number_format($deduction->amount, 2) . ')'
+            'DEDUCTION_APPROVED',
+            auth()->id(),
+            [
+                'deduction_id' => $deduction->id,
+                'amount'       => $deduction->amount
+            ]
         );
 
-        $deposit = $deduction->deposit;
-
-        if ($deposit) {
-
-            // 1. UPDATE DEPOSIT DEDUCTIONS TOTAL
-            $totalDeducted = Deduction::where('deposit_id', $deposit->id)
-                ->where('status', 'approved')
-                ->sum('amount');
-
-            $balance = $deposit->amount_received - $totalDeducted;
-
-            $deposit->update([
-                'amount_deducted' => $totalDeducted,
-                'balance' => $balance,
-                'status' => 'pending_refund',
-            ]);
-
-            // 2. CREATE OR UPDATE REFUND RECORD
-            $refundAmount = max($balance, 0);
-
-            \App\Models\Refund::updateOrCreate(
-                [
-                    'deposit_id' => $deposit->id,
-                ],
-                [
-                    'refundable_amount' => $refundAmount,
-                    'status' => 'pending',
-                ]
-            );
-        }
-
         return response()->json([
-            'approved_by' => $deduction->approved_by,
-            'approved_at' => $deduction->approved_at,
-            'approver'    => $deduction->approver,
-            'deposit'     => $deposit->fresh(),
+            'message'  => 'Deduction approved successfully',
+            'data'     => $deduction,
+            'deposit'  => $deduction->deposit->fresh()
         ]);
-    } 
+    }
 
+    /**
+     * Reject deduction
+     */
     public function reject(Request $request, Deduction $deduction)
     {
         $request->validate([
             'reason' => 'nullable|string|max:1000',
         ]);
 
-        $deduction->status = 'rejected';
-        $deduction->rejection_reason = $request->reason;
-        $deduction->approved_by = Auth::id(); // same actor field
-        $deduction->approved_at = now(); // action timestamp (or rename if you prefer)
-        $deduction->save();
+        if ($deduction->status === 'approved') {
+            return response()->json([
+                'message' => 'Cannot reject an approved deduction'
+            ], 409);
+        }
+
+        $deduction->update([
+            'status'            => 'rejected',
+            'rejection_reason'  => $request->reason,
+            'approved_by'       => auth()->id(),
+            'approved_at'       => now(),
+        ]);
 
         $this->audit(
-            'Deduction #' . $deduction->id . ' rejected'
+            'DEDUCTION_REJECTED',
+            auth()->id(),
+            [
+                'deduction_id' => $deduction->id,
+                'reason'       => $request->reason
+            ]
         );
 
         return response()->json([
             'message' => 'Deduction rejected successfully',
-            'approved_by' => $deduction->approved_by,
-            'approved_at' => $deduction->approved_at,
-            'approver' => $deduction->approver,
-            'rejection_reason' => $deduction->rejection_reason,
+            'data'    => $deduction->load('approver')
         ]);
-    }       
+    }
 }

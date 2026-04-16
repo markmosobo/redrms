@@ -22,23 +22,57 @@
 
                 <tbody v-if="loading">
                   <tr>
-                    <td colspan="4" class="text-center">
+                    <td colspan="4" class="text-center py-4">
                       <div class="spinner-border text-primary"></div>
+                    </td>
+                  </tr>
+                </tbody>
+
+                <tbody v-else-if="logs.length === 0">
+                  <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                      No audit logs found
                     </td>
                   </tr>
                 </tbody>
 
                 <tbody v-else>
                   <tr v-for="log in logs" :key="log.id">
-                    <td>{{ log.user?.name || 'System' }}</td>
-                    <td>{{ log.description }}</td>
-                    <td>{{ log.ip_address || '—' }}</td>
-                    <td>{{ formatDate(log.created_at) }}</td>
+                    <td>
+                      {{ log.user?.full_name || 'System' }}
+                    </td>
+
+                    <td>
+                      <a href="#" @click.prevent="selectedLog = log">
+                        {{ truncate(log.description, 30) }}
+                      </a>
+                    </td>
+
+                    <td>
+                      {{ log.ip_address || '—' }}
+                    </td>
+
+                    <td>
+                      {{ formatDate(log.created_at) }}
+                    </td>
                   </tr>
                 </tbody>
+
               </table>
 
             </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="selectedLog" class="modal d-block">
+        <div class="modal-dialog">
+          <div class="modal-content p-3">
+            <h5>Audit Log</h5>
+            <p>{{ selectedLog.description }}</p>
+            <button class="btn btn-secondary" @click="selectedLog = null">
+              Close
+            </button>
           </div>
         </div>
       </div>
@@ -68,21 +102,35 @@ export default {
     return {
       logs: [],
       loading: true,
+      table: null,
+      selectedLog: null,
     };
   },
 
   methods: {
+    truncate(text, length = 80) {
+      if (!text) return '';
+      return text.length > length
+        ? text.substring(0, length) + '...'
+        : text;
+    },
     async loadAuditLogs() {
       this.loading = true;
+
       try {
         const res = await axios.get("/api/audit-logs");
-        this.logs = res.data.data ?? res.data;
 
+        this.logs = res.data.data ?? res.data;
         setTimeout(() => {
-            $("#AuditLogsTable").DataTable();
+          $("#AuditLogsTable").DataTable();
         }, 10);
+
       } catch (e) {
-        toast.fire({ icon: "error", title: "Failed to load audit logs" });
+        toast.fire({
+          icon: "error",
+          title: "Failed to load audit logs",
+        });
+
         console.error(e);
       } finally {
         this.loading = false;
@@ -96,6 +144,12 @@ export default {
 
   mounted() {
     this.loadAuditLogs();
+  },
+
+  beforeUnmount() {
+    if (this.table) {
+      this.table.destroy();
+    }
   },
 };
 </script>

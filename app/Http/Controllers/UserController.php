@@ -5,38 +5,62 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Traits\Auditable;
 
 class UserController extends Controller
 {
+    use Auditable;
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         $users = User::get();
+
+        $this->audit(
+            'USERS_VIEWED: count=' . $users->count()
+        );
+
         return response()->json($users);
     }
-    
+
     public function landlords()
     {
         $users = User::where('role', 'landlord')->get();
+
+        $this->audit(
+            'LANDLORDS_VIEWED: count=' . $users->count()
+        );
+
         return response()->json($users);
     }
-    
+
     public function managers()
     {
         $users = User::where('role', 'manager')
             ->withCount('managedProperties')
             ->get();
 
+        $this->audit(
+            'MANAGERS_VIEWED: count=' . $users->count()
+        );
+
         return response()->json($users);
     }
-    
+
     public function tenants()
     {
-        $users = User::where('role', 'tenant')->with('activeTenancy.unit.property')->get();
+        $users = User::where('role', 'tenant')
+            ->with('activeTenancy.unit.property')
+            ->get();
+
+        $this->audit(
+            'TENANTS_VIEWED: count=' . $users->count()
+        );
+
         return response()->json($users);
-    }     
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -61,6 +85,13 @@ class UserController extends Controller
         $user->password  = Hash::make($request->password);
         $user->save();
 
+        $this->audit(
+            'USER_CREATED: id=' . $user->id .
+            ', name=' . $user->full_name .
+            ', role=' . $user->role .
+            ', email=' . $user->email
+        );
+
         return response()->json([
             'message' => 'User created successfully',
             'user' => $user
@@ -73,6 +104,12 @@ class UserController extends Controller
     public function show(string $id)
     {
         $user = User::findOrFail($id);
+
+        $this->audit(
+            'USER_VIEWED: id=' . $user->id .
+            ', role=' . $user->role
+        );
+
         return response()->json($user);
     }
 
@@ -82,6 +119,14 @@ class UserController extends Controller
     public function update(Request $request, string $id)
     {
         $user = User::findOrFail($id);
+
+        $old = $user->only([
+            'full_name',
+            'email',
+            'phone',
+            'role',
+            'status'
+        ]);
 
         $request->validate([
             'full_name' => 'required|string|max:255',
@@ -98,12 +143,23 @@ class UserController extends Controller
         $user->role      = $request->role;
         $user->status    = $request->status;
 
-        // Only update password if provided
         if ($request->filled('password')) {
             $user->password = Hash::make($request->password);
         }
 
         $user->save();
+
+        $this->audit(
+            'USER_UPDATED: id=' . $user->id .
+            ', old=' . json_encode($old) .
+            ', new=' . json_encode($user->only([
+                'full_name',
+                'email',
+                'phone',
+                'role',
+                'status'
+            ]))
+        );
 
         return response()->json([
             'message' => 'User updated successfully',
@@ -117,6 +173,14 @@ class UserController extends Controller
     public function destroy(string $id)
     {
         $user = User::findOrFail($id);
+
+        $this->audit(
+            'USER_DELETED: id=' . $user->id .
+            ', name=' . $user->full_name .
+            ', role=' . $user->role .
+            ', email=' . $user->email
+        );
+
         $user->delete();
 
         return response()->json([
