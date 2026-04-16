@@ -35,6 +35,37 @@ class NotificationController extends Controller
         return $query->latest()->paginate(50);
     }
 
+    public function adminAll(Request $request)
+    {
+        $user = Auth::user();
+
+        // 🔒 HARD BLOCK non-admins
+        if ($user->role !== 'admin') {
+            abort(403, 'Unauthorized');
+        }
+
+        $query = Notification::query(); // 🚨 NO user_id filter
+
+        if ($request->filter === 'unread') {
+            $query->whereNull('read_at');
+        }
+
+        if ($request->filter === 'read') {
+            $query->whereNotNull('read_at');
+        }
+
+                // Optional future filters
+        if ($request->user_id) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        if ($request->type) {
+            $query->where('type', $request->type);
+        }
+
+        return $query->latest()->paginate(50);
+    }
+
     /**
      * Create notification (system use)
      */

@@ -73,6 +73,7 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::get('/notifications/unread', [NotificationController::class, 'index']);
     Route::get('/notifications', [NotificationController::class, 'all']);
+    Route::get('/admin/notifications', [NotificationController::class, 'adminAll']);
 
     Route::post('/notifications', [NotificationController::class, 'store']);
 

@@ -19,6 +19,9 @@ class Notification extends Model
         'read_at'
     ];
 
+    protected $dates = ['read_at'];
+
+
     /**
      * Notification belongs to a user
      */

@@ -155,7 +155,7 @@ export default {
             {
               label: 'Inbox',
               to: '/notifications',
-              roles: ['landlord', 'manager', 'tenant']
+              roles: ['admin','landlord', 'manager', 'tenant']
             },
             {
               label: 'All Messages',
@@ -177,9 +177,26 @@ export default {
 
   computed: {
     visibleMenu() {
-      return this.menuItems.filter(item =>
-        item.roles.includes(this.userRole)
-      );
+      return this.menuItems
+        .filter(item => item.roles.includes(this.userRole))
+        .map(item => {
+          // If no children, return as-is
+          if (!item.children) return item;
+
+          // Filter children by role
+          const filteredChildren = item.children.filter(child =>
+            !child.roles || child.roles.includes(this.userRole)
+          );
+
+          // Hide parent if no children left
+          if (filteredChildren.length === 0) return null;
+
+          return {
+            ...item,
+            children: filteredChildren
+          };
+        })
+        .filter(Boolean); // remove nulls
     }
   },
 

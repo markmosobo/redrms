@@ -49,15 +49,6 @@ class PropertyUnitTenancySeeder extends Seeder
             'status'      => 'vacant'
         ]);
 
-        // 📄 Create Tenancy (active)
-        Tenancy::create([
-            'tenant_id'      => $tenant->id,
-            'unit_id'        => $unit1->id,
-            'start_date'     => Carbon::now()->subMonths(1),
-            'deposit_amount'=> 6000,
-            'status'         => 'active'
-        ]);
-
         $this->command->info('Property, Units & Tenancy seeded successfully.');
     }
 }

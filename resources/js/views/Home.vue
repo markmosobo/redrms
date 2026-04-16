@@ -107,27 +107,33 @@
           class="col-xxl-3 col-md-4 col-sm-6 mb-3"
         >
           <div class="card shadow-sm border-danger">
-
             <div class="card-body">
 
+              <!-- CARD TITLE -->
               <h5 class="card-title text-danger">
-                Termination Request
+                {{ terminationRequest && terminationRequest.tenancy_id === tenancy?.id
+                    ? 'Termination Request'
+                    : 'My Tenancy'
+                }}
               </h5>
 
-              <!-- NO TENANCY -->
+              <!-- 🚫 NO TENANCY -->
               <div v-if="!tenancy" class="text-muted small">
                 No active tenancy found
               </div>
 
-              <!-- ACTIVE TENANCY -->
+              <!-- ✅ ACTIVE TENANCY -->
               <div v-else>
 
-                <!-- 🟡 REQUEST EXISTS -->
-                <div v-if="terminationRequest" class="mb-3">
-
+                <!-- 🔴 TERMINATION REQUEST EXISTS -->
+                <div
+                  v-if="terminationRequest && terminationRequest.tenancy_id === tenancy.id"
+                  class="mb-3"
+                >
                   <div class="small text-muted">
                     Status:
-                    <span class="badge"
+                    <span
+                      class="badge"
                       :class="{
                         'bg-warning': terminationRequest.status === 'pending',
                         'bg-success': terminationRequest.status === 'approved',
@@ -143,16 +149,41 @@
                     {{ terminationRequest.reason }}
                   </div>
 
-                  <div v-if="terminationRequest.requested_end_date" class="small">
+                  <div
+                    v-if="terminationRequest.requested_end_date"
+                    class="small"
+                  >
                     <strong>Requested End:</strong>
                     {{ formatDate(terminationRequest.requested_end_date) }}
                   </div>
-
                 </div>
 
-                <!-- 🟢 NO REQUEST YET -->
+                <!-- 🟢 NO TERMINATION REQUEST → SHOW TENANCY DETAILS -->
+                <div v-else class="small mb-3">
+                  <div>
+                    <strong>Property:</strong>
+                    {{ tenancy.unit.property.property_name }}
+                  </div>
+
+                  <div>
+                    <strong>Unit:</strong>
+                    {{ tenancy.unit.unit_number }}
+                  </div>
+
+                  <div>
+                    <strong>Rent:</strong>
+                    KES {{ tenancy.unit.rent_amount }}
+                  </div>
+
+                  <div>
+                    <strong>Started:</strong>
+                    {{ formatDate(tenancy.start_date) }}
+                  </div>
+                </div>
+
+                <!-- REQUEST EXIT BUTTON -->
                 <button
-                  v-if="!terminationRequest"
+                  v-if="!terminationRequest || !terminationRequest.id"
                   class="btn btn-sm btn-danger w-100"
                   @click="openTerminationModal"
                 >

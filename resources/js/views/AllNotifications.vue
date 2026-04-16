@@ -236,7 +236,7 @@ export default {
       this.loading = true;
 
       try {
-        const res = await axios.get('/api/notifications');
+        const res = await axios.get('/api/admin/notifications');
 
         // works for paginated & non-paginated
         this.notifications = res.data.data ?? res.data ?? [];

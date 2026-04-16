@@ -7,13 +7,14 @@ use App\Models\Tenancy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class TerminationRequestController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
 
     /**
-     * Tenant / Admin creates request
+     * Tenant creates termination request
      */
     public function store(Request $request)
     {
@@ -22,7 +23,7 @@ class TerminationRequestController extends Controller
             'requested_end_date' => 'nullable|date',
         ]);
 
-        // 🔒 Get tenancy automatically (NO frontend trust)
+        // 🔒 Get active tenancy for tenant
         $tenancy = Tenancy::where('tenant_id', auth()->id())
             ->where('status', 'active')
             ->firstOrFail();
@@ -35,10 +36,17 @@ class TerminationRequestController extends Controller
             'status' => 'pending',
         ]);
 
-        $this->audit(
-            'TERMINATION_REQUEST_CREATED',
-            auth()->id()
+        // 🔔 Notify admins / managers / landlords
+        $this->notifyRoles(
+            ['admin', 'manager', 'landlord'],
+            'Termination Request Submitted',
+            'A tenant has requested to terminate a tenancy.',
+            'termination_request',
+            $termination->id,
+            'termination_requests'
         );
+
+        $this->audit('TERMINATION_REQUEST_CREATED', auth()->id());
 
         return response()->json([
             'message' => 'Termination request submitted',
@@ -47,18 +55,18 @@ class TerminationRequestController extends Controller
     }
 
     /**
-     * List all requests (admin/manager view)
+     * Admin / Manager list
      */
     public function index()
     {
-        $requests = TerminationRequest::with([
-            'tenancy.unit.property',
-            'tenancy.tenant',
-            'requester',
-            'processor'
-        ])->latest()->get();
-
-        return response()->json($requests);
+        return response()->json(
+            TerminationRequest::with([
+                'tenancy.unit.property',
+                'tenancy.tenant',
+                'requester',
+                'processor'
+            ])->latest()->get()
+        );
     }
 
     /**
@@ -74,15 +82,31 @@ class TerminationRequestController extends Controller
                 'processed_at' => now(),
             ]);
 
-            // Optional: mark tenancy inactive
             $terminationRequest->tenancy->update([
                 'status' => 'terminated'
             ]);
 
-            $this->audit(
-                'TERMINATION_APPROVED',
-                auth()->id()
+            // 🔔 Notify tenant
+            $this->notifyUser(
+                $terminationRequest->requested_by,
+                'Termination Approved',
+                'Your termination request has been approved.',
+                'termination_request',
+                $terminationRequest->id,
+                'termination_requests'
             );
+
+            // 🔔 Optional: notify landlord
+            $this->notifyRoles(
+                ['landlord'],
+                'Tenancy Terminated',
+                'A tenancy under your property has been terminated.',
+                'tenancy',
+                $terminationRequest->tenancy_id,
+                'tenancies'
+            );
+
+            $this->audit('TERMINATION_APPROVED', auth()->id());
         });
 
         return response()->json([
@@ -101,10 +125,17 @@ class TerminationRequestController extends Controller
             'processed_at' => now(),
         ]);
 
-        $this->audit(
-            'TERMINATION_REJECTED',
-            auth()->id()
+        // 🔔 Notify tenant
+        $this->notifyUser(
+            $terminationRequest->requested_by,
+            'Termination Rejected',
+            'Your termination request was rejected.',
+            'termination_request',
+            $terminationRequest->id,
+            'termination_requests'
         );
+
+        $this->audit('TERMINATION_REJECTED', auth()->id());
 
         return response()->json([
             'message' => 'Termination rejected'
@@ -112,27 +143,36 @@ class TerminationRequestController extends Controller
     }
 
     /**
-     * Tenant sees only their requests
+     * Tenant: all my requests
      */
     public function myRequests()
     {
-        $requests = TerminationRequest::with('tenancy.unit')
-            ->where('requested_by', auth()->id())
-            ->latest()
-            ->get();
-
-        return response()->json($requests);
+        return response()->json(
+            TerminationRequest::with('tenancy.unit')
+                ->where('requested_by', auth()->id())
+                ->latest()
+                ->get()
+        );
     }
 
+    /**
+     * Tenant: latest request
+     */
     public function myRequest()
     {
-        $user = auth()->user();
+        $tenancy = Tenancy::where('tenant_id', auth()->id())
+            ->where('status', 'active')
+            ->first();
+
+        if (!$tenancy) {
+            return response()->json(null);
+        }
 
         $request = TerminationRequest::with('tenancy.unit.property')
-            ->where('requested_by', $user->id)
+            ->where('tenancy_id', $tenancy->id)
             ->latest()
             ->first();
 
         return response()->json($request);
-    }    
+    }
 }
