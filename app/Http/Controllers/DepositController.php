@@ -6,9 +6,11 @@ use App\Models\Deposit;
 use App\Models\Tenancy;
 use App\Models\Notification;
 use Illuminate\Http\Request;
+use App\Traits\Auditable;
 
 class DepositController extends Controller
 {
+    use Auditable;
     /**
      * Display a listing of the resource.
      */
@@ -35,6 +37,10 @@ class DepositController extends Controller
             'received_date'  => $request->received_date ?? now(),
             'status'         => 'active',
         ]);
+
+        $this->audit(
+            'Deposit created (KES ' . number_format($deposit->amount_received, 2) . ')'
+        );
 
         return response()->json([
             'message' => 'Deposit recorded successfully',
@@ -66,6 +72,10 @@ class DepositController extends Controller
 
         $deposit->update($request->only(['amount_received', 'received_date', 'status']));
 
+        $this->audit(
+            'Deposit #' . $deposit->id . ' updated'
+        );
+
         return response()->json([
             'message' => 'Deposit updated successfully',
             'data'    => $deposit
@@ -79,6 +89,10 @@ class DepositController extends Controller
     {
         $deposit = Deposit::findOrFail($id);
         $deposit->delete();
+
+        $this->audit(
+            'Deposit #' . $deposit->id . ' deleted'
+        );
 
         return response()->json([
             'message' => 'Deposit deleted successfully'
@@ -125,6 +139,12 @@ class DepositController extends Controller
                     ? 'partially_deducted'
                     : 'refunded',
             ]);
+
+            $this->audit(
+                'Deposit #' . $deposit->id .
+                ' finalized. Refundable: KES ' .
+                number_format($refundableAmount, 2)
+            );
 
             return response()->json([
                 'deposit_id'        => $deposit->id,
@@ -182,6 +202,12 @@ class DepositController extends Controller
         |--------------------------------------------------------------------------
         */
         $deposit->save();
+
+        $this->audit(
+            'Deposit payment received: KES ' .
+            number_format($request->amount, 2) .
+            ' (Deposit #' . $deposit->id . ')'
+        );        
 
         /*
         |--------------------------------------------------------------------------

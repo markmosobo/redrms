@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Traits\Auditable;
 
 class PropertyController extends Controller
 {
+    use Auditable;
     /**
      * Display a listing of the resource.
      */
@@ -45,6 +47,12 @@ class PropertyController extends Controller
             'description'   => $request->description,
         ]);
 
+        $this->audit(
+            'PROPERTY_CREATED: ' . $property->property_name,
+            auth()->id(),
+            $property
+        );
+
         return response()->json([
             'message' => 'Property created successfully',
             'data'    => $property
@@ -81,6 +89,8 @@ class PropertyController extends Controller
             'description'   => $request->description,
         ]);
 
+        
+
         return response()->json([
             'message' => 'Property updated successfully',
             'data'    => $property
@@ -93,6 +103,13 @@ class PropertyController extends Controller
     public function destroy(string $id)
     {
         $property = Property::findOrFail($id);
+
+        $this->audit(
+            'PROPERTY_DELETED: ' . $property->property_name,
+            auth()->id(),
+            $property
+        );
+        
         $property->delete();
 
         return response()->json([

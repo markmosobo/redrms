@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
+use App\Traits\Auditable;
 
 class AuthController extends Controller
 {
+    use Auditable;
     /**
      * Register a new user and return JWT
      */
@@ -43,11 +45,7 @@ class AuthController extends Controller
 
         $token = auth('api')->login($user);
 
-        // ✅ Use the created user, NOT auth()->user()
-        AuditLog::create([
-            'user_id' => $user->id,
-            'description' => $user->name . ' created account'
-        ]);
+        $this->audit($user->name . ' created account', $user->id);
 
         return response()->json([
             'status'  => 'success',
@@ -69,11 +67,8 @@ class AuthController extends Controller
             return response()->json(['error' => 'Invalid credentials'], 401);
         }
 
-        //record system log
-        AuditLog::create([
-            'user_id' => auth('api')->user()->id,
-            'description' => auth('api')->user()->name.' logged in'
-        ]);        
+        //record system log 
+        $this->audit(auth('api')->user()->name . ' logged in');        
 
         return response()->json([
             'status' => 'success',
@@ -101,10 +96,7 @@ class AuthController extends Controller
 
             auth('api')->logout();
 
-            AuditLog::create([
-                'user_id' => $user->id,
-                'description' => $user->name . ' logged out'
-            ]);
+            $this->audit($user->name . ' logged out', $user->id);
 
             return response()->json([
                 'status' => 'success',

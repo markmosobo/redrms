@@ -8,12 +8,19 @@ use App\Models\Unit;
 use App\Models\User;
 use App\Models\Tenancy;
 use App\Models\Deposit;
+use App\Traits\Auditable;
 
 class DashboardController extends Controller
 {
+    use Auditable;
     public function index(Request $request)
     {
         $user = $request->user();
+
+        $this->audit(
+            $user->name . ' viewed dashboard (' . $user->role . ')',
+            $user->id
+        );
 
         return match ($user->role) {
             'admin'    => $this->adminDashboard(),

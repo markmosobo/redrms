@@ -26,86 +26,86 @@
                   </tr>
                 </thead>
 
-<tbody>
+                <tbody>
 
-  <!-- 🔄 LOADING STATE -->
-  <tr v-if="loading">
-    <td colspan="8" class="text-center py-5">
-      <div class="spinner-border text-primary mb-2"></div>
-      <div class="text-muted">Loading refunds…</div>
-    </td>
-  </tr>
+                  <!-- 🔄 LOADING STATE -->
+                  <tr v-if="loading">
+                    <td colspan="8" class="text-center py-5">
+                      <div class="spinner-border text-primary mb-2"></div>
+                      <div class="text-muted">Loading refunds…</div>
+                    </td>
+                  </tr>
 
-  <!-- 📭 EMPTY STATE -->
-  <tr v-else-if="refunds.length === 0">
-    <td colspan="8" class="text-center py-5">
-      <i class="ri-inbox-line fs-1 text-muted mb-2 d-block"></i>
-      <div class="fw-semibold">No refunds available</div>
-      <div class="text-muted">
-        All refundable deposits have already been processed.
-      </div>
-    </td>
-  </tr>
+                  <!-- 📭 EMPTY STATE -->
+                  <tr v-else-if="refunds.length === 0">
+                    <td colspan="8" class="text-center py-5">
+                      <i class="ri-inbox-line fs-1 text-muted mb-2 d-block"></i>
+                      <div class="fw-semibold">No refunds available</div>
+                      <div class="text-muted">
+                        All refundable deposits have already been processed.
+                      </div>
+                    </td>
+                  </tr>
 
-  <!-- 📊 DATA STATE -->
-  <tr v-else v-for="refund in refunds" :key="refund.refund_id">
+                  <!-- 📊 DATA STATE -->
+                  <tr v-else v-for="refund in refunds" :key="refund.refund_id">
 
-    <td>{{ refund.tenant?.full_name || 'N/A' }}</td>
+                    <td>{{ refund.tenant?.full_name || 'N/A' }}</td>
 
-    <td>{{ refund.property?.property_name || 'N/A' }}</td>
+                    <td>{{ refund.property?.property_name || 'N/A' }}</td>
 
-    <td>{{ refund.unit?.unit_number || 'N/A' }}</td>
+                    <td>{{ refund.unit?.unit_number || 'N/A' }}</td>
 
-    <td>KES {{ refund.amount_received }}</td>
+                    <td>KES {{ refund.amount_received }}</td>
 
-    <td>KES {{ refund.total_deductions || 0 }}</td>
+                    <td>KES {{ refund.total_deductions || 0 }}</td>
 
-    <td>
-      <strong>KES {{ refund.refundable_amount }}</strong>
-    </td>
+                    <td>
+                      <strong>KES {{ refund.refundable_amount }}</strong>
+                    </td>
 
-    <td>
-      <span
-        class="badge"
-        :class="{
-          'bg-warning': refund.status === 'pending',
-          'bg-success': refund.status === 'approved',
-          'bg-danger': refund.status === 'rejected',
-          'bg-info': refund.status === 'paid'
-        }"
-      >
-        {{ refund.status }}
-      </span>
-    </td>
+                    <td>
+                      <span
+                        class="badge"
+                        :class="{
+                          'bg-warning': refund.status === 'pending',
+                          'bg-success': refund.status === 'approved',
+                          'bg-danger': refund.status === 'rejected',
+                          'bg-info': refund.status === 'paid'
+                        }"
+                      >
+                        {{ refund.status }}
+                      </span>
+                    </td>
 
-    <td>
-      <div class="btn-group">
-        <button
-          class="btn btn-sm btn-primary dropdown-toggle"
-          data-bs-toggle="dropdown"
-        >
-          Action
-        </button>
+                    <td>
+                      <div class="btn-group">
+                        <button
+                          class="btn btn-sm btn-primary dropdown-toggle"
+                          data-bs-toggle="dropdown"
+                        >
+                          Action
+                        </button>
 
-        <div class="dropdown-menu">
-          <a class="dropdown-item" @click="viewBreakdown(refund)">
-            View Breakdown
-          </a>
+                        <div class="dropdown-menu">
+                          <a class="dropdown-item" @click="viewBreakdown(refund)">
+                            View Breakdown
+                          </a>
 
-          <a
-            v-if="refund.status === 'pending'"
-            class="dropdown-item"
-            @click="finalizeRefund(refund)"
-          >
-            Finalize Refund
-          </a>
-        </div>
-      </div>
-    </td>
+                          <a
+                            v-if="refund.status === 'pending'"
+                            class="dropdown-item"
+                            @click="finalizeRefund(refund)"
+                          >
+                            Finalize Refund
+                          </a>
+                        </div>
+                      </div>
+                    </td>
 
-  </tr>
+                  </tr>
 
-</tbody>
+                </tbody>
               </table>
 
             </div>

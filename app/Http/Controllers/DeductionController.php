@@ -6,9 +6,11 @@ use App\Models\Deduction;
 use App\Models\Inspection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Traits\Auditable;
 
 class DeductionController extends Controller
 {
+    use Auditable;
     /**
      * List all deductions
      */
@@ -49,6 +51,10 @@ class DeductionController extends Controller
             'approved_at',
         ]));
 
+        $this->audit(
+            'Deduction created (KES ' . number_format($deduction->amount, 2) . ')',
+        );
+
         return response()->json([
             'message' => 'Deduction created successfully',
             'data'    => $deduction,
@@ -85,6 +91,10 @@ class DeductionController extends Controller
             'approved_at',
         ]));
 
+        $this->audit(
+            'Deduction #' . $deduction->id . ' updated'
+        );
+
         return response()->json([
             'message' => 'Deduction updated successfully',
             'data'    => $deduction,
@@ -98,6 +108,10 @@ class DeductionController extends Controller
     {
         $deduction = Deduction::findOrFail($id);
         $deduction->delete();
+
+        $this->audit(
+            'Deduction #' . $deduction->id . ' deleted'
+        );
 
         return response()->json([
             'message' => 'Deduction deleted successfully'
@@ -117,6 +131,10 @@ class DeductionController extends Controller
         ]);
 
         $deduction->load('approver', 'deposit.tenancy');
+
+        $this->audit(
+            'Deduction #' . $deduction->id . ' approved (KES ' . number_format($deduction->amount, 2) . ')'
+        );
 
         $deposit = $deduction->deposit;
 
@@ -168,6 +186,10 @@ class DeductionController extends Controller
         $deduction->approved_by = Auth::id(); // same actor field
         $deduction->approved_at = now(); // action timestamp (or rename if you prefer)
         $deduction->save();
+
+        $this->audit(
+            'Deduction #' . $deduction->id . ' rejected'
+        );
 
         return response()->json([
             'message' => 'Deduction rejected successfully',

@@ -6,9 +6,11 @@ use App\Models\Refund;
 use Illuminate\Http\Request;
 use App\Models\Deposit;
 use Illuminate\Support\Facades\DB;
+use App\Traits\Auditable;
 
 class RefundController extends Controller
 {
+    use Auditable;
     /**
      * List refundable deposits
      */
@@ -75,6 +77,7 @@ class RefundController extends Controller
                 'status' => 'refunded'
             ]);
         });
+        
 
         // 🔄 reload relations for frontend sync
         $refund->load('deposit');

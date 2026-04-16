@@ -7,9 +7,11 @@ use App\Models\Inspection;
 use App\Models\Deposit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Traits\Auditable;
 
 class InspectionController extends Controller
 {
+     use Auditable;
     /**
      * Display a listing of inspections
      */
@@ -39,6 +41,10 @@ class InspectionController extends Controller
             'inspection_type' => $request->inspection_type,
             'created_by'      => auth()->id(), // current user
         ]);
+
+        $this->audit(
+            'Inspection created (Type: ' . $inspection->inspection_type . ')',
+        );
 
         return response()->json([
             'message' => 'Inspection created successfully',
@@ -74,6 +80,10 @@ class InspectionController extends Controller
             'inspection_type'
         ]));
 
+        $this->audit(
+            'Inspection #' . $inspection->id . ' updated'
+        );
+
         return response()->json([
             'message' => 'Inspection updated successfully',
             'data'    => $inspection
@@ -87,6 +97,10 @@ class InspectionController extends Controller
     {
         $inspection = Inspection::findOrFail($id);
         $inspection->delete();
+
+        $this->audit(
+            'Inspection #' . $inspection->id . ' deleted'
+        );
 
         return response()->json([
             'message' => 'Inspection deleted successfully'
@@ -110,6 +124,10 @@ class InspectionController extends Controller
             $deposit->update([
                 'status' => 'deductions_applied',
             ]);
+
+            $this->audit(
+                'Inspection completed for Deposit #' . $deposit->id
+            );
 
             // 2. Find related inspection via TENANCY (correct relationship)
             Inspection::where('tenancy_id', $deposit->tenancy_id)
@@ -150,6 +168,11 @@ class InspectionController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
+            $this->audit(
+                'Inspection #' . $inspection->id .
+                ' completed with deductions'
+            );
+
             // 2. Create deduction records
             if (!empty($request->deductions)) {
                 foreach ($request->deductions as $item) {
@@ -171,6 +194,7 @@ class InspectionController extends Controller
                     'status' => 'deductions_applied'
                 ]);
             }
+            
         });
 
         return response()->json([
