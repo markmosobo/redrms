@@ -20,11 +20,11 @@
 <!--     <img src="images/logo.png" alt="Logo" width="80" height="80"> -->
   </a>
 
-  <h3 align="center"> Larafarm</h3>
+  <h3 align="center"> REDRMS</h3>
 
   <p align="center">
-    a web app to manage crops,poultry, animals and other farm resources plus corresponding finances
-    especially for a farmer bored with manual record keeping
+    (Rent Deposit and Refund Management System) a web app to manage deposit refunds and trackings plus corresponding finances
+    especially for a manager or landlord bored with manual record keeping
     <br />
 
   </p>
@@ -33,7 +33,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 Here’s what your completed application will look like:
-![farm](https://user-images.githubusercontent.com/34887895/171955472-bb520b79-4c5d-4464-bed3-37c52b4c6f32.PNG)
+<img width="1228" height="621" alt="redrms" src="https://github.com/user-attachments/assets/dd6ce0be-e8db-4974-9180-d922b5babff7" />
 
 
 
@@ -92,9 +92,8 @@ _Below is an example of how you can instruct your audience on installing and set
    ```sh
    php artisan serve
    ```  
-8. Login credentials (admin)
-    admin@admin.com
-    123456   
+8. Login credentials (use Quick AutoLogin)
+     
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 <!-- CONTACT -->
