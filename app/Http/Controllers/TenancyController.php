@@ -8,6 +8,7 @@ use App\Models\Tenancy;
 use App\Models\Unit;
 use App\Models\User;
 use App\Models\Notification;
+use App\Services\TenancyTerminationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
@@ -226,59 +227,17 @@ class TenancyController extends Controller
     /**
      * 🔥 TERMINATE TENANCY
      */
-    public function terminate(Tenancy $tenancy)
-    {
-        DB::transaction(function () use ($tenancy) {
+    public function terminate(
+        Tenancy $tenancy,
+        TenancyTerminationService $terminationService
+    ) {
+        DB::transaction(function () use ($tenancy, $terminationService) {
 
-            // 1. Terminate tenancy
-            $tenancy->update([
-                'status' => 'terminated',
-                'end_date' => now()
-            ]);
+            $terminationService->terminate(
+                $tenancy,
+                auth()->id() // 👈 who triggered it
+            );
 
-            // 2. Free unit
-            $tenancy->unit->update(['status' => 'vacant']);
-
-            // 3. Get deposit
-            $deposit = Deposit::where('tenancy_id', $tenancy->id)
-                ->where('status', 'held')
-                ->first();
-
-            if ($deposit) {
-
-                // 4. Mark deposit under inspection
-                $deposit->update([
-                    'status' => 'under_inspection'
-                ]);
-
-                // 5. 🔥 AUTO CREATE INSPECTION (THIS IS WHAT YOU WERE MISSING)
-                Inspection::create([
-                    'tenancy_id' => $tenancy->id,
-                    'unit_id' => $tenancy->unit_id,
-
-                    'inspection_date' => null,   // not scheduled yet
-                    'created_by' => null,        // system-generated or unassigned
-
-                    'inspection_type' => 'move_out',
-                    'status' => 'draft',
-                    'notes' => null
-                ]);
-
-                // 6. Notify managers
-                $managers = User::where('role', 'manager')->get();
-
-                foreach ($managers as $manager) {
-                    Notification::create([
-                        'user_id'       => $manager->id,
-                        'title'         => 'Inspection Required',
-                        'message'       => 'Unit ' . $tenancy->unit->unit_number .
-                                        ' is ready for move-out inspection.',
-                        'type'          => 'inspection_required',
-                        'resource_type' => 'tenancy',
-                        'resource_id'   => $tenancy->id,
-                    ]);
-                }
-            }
         });
 
         return response()->noContent();

@@ -7,10 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\Deposit;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
+use App\Traits\NotifiesUsers;
 
 class RefundController extends Controller
 {
-    use Auditable;
+    use Auditable, NotifiesUsers;
+
     /**
      * List refundable deposits
      */

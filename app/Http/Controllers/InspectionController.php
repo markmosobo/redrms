@@ -88,6 +88,48 @@ class InspectionController extends Controller
     }
 
     /**
+     * INSPECTION → DEDUCTION SUMMARY
+     * Used by Deductions dashboard
+     */
+    public function byInspection()
+    {
+        $inspections = Inspection::query()
+            ->where('inspection_type', 'move_out')
+            ->whereHas('deductions') // only inspections with deductions
+            ->with([
+                'tenancy.tenant',
+                'tenancy.unit.property',
+                'deductions.approver',
+            ])
+            ->get()
+            ->map(function ($inspection) {
+
+                $total = $inspection->deductions
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->sum('amount');
+
+                return [
+                    'inspection_id'   => $inspection->id,
+                    'inspection_date' => $inspection->inspection_date,
+
+                    'tenant' => $inspection->tenancy->tenant,
+
+                    'unit' => [
+                        'unit_number' => $inspection->tenancy->unit->unit_number ?? null,
+                        'property'    => $inspection->tenancy->unit->property ?? null,
+                    ],
+
+                    'deductions' => $inspection->deductions,
+
+                    'total_deductions' => $total,
+                ];
+            });
+
+        return response()->json($inspections);
+    }    
+
+
+    /**
      * COMPLETE INSPECTION (NO DEDUCTIONS)
      */
     public function complete(Request $request)

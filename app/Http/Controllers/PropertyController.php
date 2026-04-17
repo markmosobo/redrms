@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
 use App\Traits\NotifiesUsers;
 
@@ -17,12 +18,9 @@ class PropertyController extends Controller
      */
     public function index()
     {
-        $properties = Property::with('landlord')->get();
-        $landlords = User::where('role', 'landlord')->get();
-
         return response()->json([
-            'properties' => $properties,
-            'landlords' => $landlords,
+            'properties' => Property::with('landlord')->get(),
+            'landlords'  => User::where('role', 'landlord')->get(),
         ]);
     }
 
@@ -38,40 +36,35 @@ class PropertyController extends Controller
             'description'   => 'nullable|string',
         ]);
 
-        $property = Property::create([
-            'landlord_id'   => $request->landlord_id,
-            'property_name' => $request->property_name,
-            'location'      => $request->location,
-            'description'   => $request->description,
-        ]);
+        $property = null;
 
-        $this->audit(
-            'PROPERTY_CREATED',
-            json_encode([
-                'property_id' => $property->id,
-                'name'        => $property->property_name,
-                'location'    => $property->location,
-                'landlord_id' => $property->landlord_id,
-            ])
-        );
+        DB::transaction(function () use ($request, &$property) {
 
-        // 🔔 NOTIFICATIONS
+            $property = Property::create([
+                'landlord_id'   => $request->landlord_id,
+                'property_name' => $request->property_name,
+                'location'      => $request->location,
+                'description'   => $request->description,
+            ]);
 
-        // Notify landlord
+            $this->audit(
+                "Created property: {$property->property_name} (ID: {$property->id})"
+            );
+        });
+
         $this->notifyUser(
             $property->landlord_id,
             'Property Created',
-            'Your property "' . $property->property_name . '" has been successfully registered.',
+            "Your property '{$property->property_name}' has been successfully registered.",
             'property_created',
             $property->id,
             'property'
         );
 
-        // Notify managers
         $this->notifyRoles(
             ['manager'],
             'New Property Added',
-            'A new property "' . $property->property_name . '" has been added in the system.',
+            "A new property '{$property->property_name}' has been added.",
             'property_created',
             $property->id,
             'property'
@@ -94,7 +87,7 @@ class PropertyController extends Controller
     }
 
     /**
-     * UPDATE PROPERTY
+     * UPDATE
      */
     public function update(Request $request, string $id)
     {
@@ -114,42 +107,21 @@ class PropertyController extends Controller
             'description'   => 'nullable|string',
         ]);
 
-        $property->update([
-            'landlord_id'   => $request->landlord_id,
-            'property_name' => $request->property_name,
-            'location'      => $request->location,
-            'description'   => $request->description,
-        ]);
+        $property->update($request->only([
+            'landlord_id',
+            'property_name',
+            'location',
+            'description'
+        ]));
 
         $this->audit(
-            'PROPERTY_UPDATED',
-            json_encode([
-                'property_id' => $property->id,
-                'old' => $old,
-                'new' => $property->only([
-                    'landlord_id',
-                    'property_name',
-                    'location',
-                    'description'
-                ])
-            ])
+            "Updated property: {$property->property_name} (ID: {$property->id})"
         );
-
-        // 🔔 NOTIFICATIONS
 
         $this->notifyUser(
             $property->landlord_id,
             'Property Updated',
-            'Your property "' . $property->property_name . '" has been updated.',
-            'property_updated',
-            $property->id,
-            'property'
-        );
-
-        $this->notifyRoles(
-            ['manager'],
-            'Property Updated',
-            'Property "' . $property->property_name . '" has been updated.',
+            "Your property '{$property->property_name}' has been updated.",
             'property_updated',
             $property->id,
             'property'
@@ -162,37 +134,20 @@ class PropertyController extends Controller
     }
 
     /**
-     * DELETE PROPERTY
+     * DELETE
      */
     public function destroy(string $id)
     {
         $property = Property::findOrFail($id);
 
         $this->audit(
-            'PROPERTY_DELETED',
-            json_encode([
-                'property_id'   => $property->id,
-                'property_name' => $property->property_name,
-                'location'      => $property->location,
-                'landlord_id'   => $property->landlord_id,
-            ])
+            "Deleted property: {$property->property_name} (ID: {$property->id})"
         );
-
-        // 🔔 NOTIFICATIONS BEFORE DELETE
 
         $this->notifyUser(
             $property->landlord_id,
             'Property Deleted',
-            'Your property "' . $property->property_name . '" has been removed from the system.',
-            'property_deleted',
-            $property->id,
-            'property'
-        );
-
-        $this->notifyRoles(
-            ['manager'],
-            'Property Removed',
-            'A property has been deleted from the system.',
+            "Your property '{$property->property_name}' has been removed.",
             'property_deleted',
             $property->id,
             'property'
@@ -206,60 +161,6 @@ class PropertyController extends Controller
     }
 
     /**
-     * LANDLORD PROPERTIES
-     */
-    public function landlordProperties(User $landlord)
-    {
-        return $landlord->properties()
-            ->withCount('units')
-            ->latest()
-            ->get();
-    }
-
-    /**
-     * MANAGER PROPERTIES
-     */
-    public function managerProperties($managerId)
-    {
-        return Property::where('manager_id', $managerId)
-            ->withCount('units')
-            ->latest()
-            ->get();
-    }
-
-    /**
-     * CREATE PROPERTY FOR LANDLORD
-     */
-    public function storeProperty(Request $request, User $landlord)
-    {
-        $property = $landlord->properties()->create([
-            'property_name' => $request->property_name,
-            'location'      => $request->location,
-            'description'   => $request->description
-        ]);
-
-        $this->audit(
-            'PROPERTY_CREATED',
-            json_encode([
-                'property_id' => $property->id,
-                'name' => $property->property_name,
-                'landlord_id' => $landlord->id
-            ])
-        );
-
-        $this->notifyUser(
-            $landlord->id,
-            'Property Created',
-            'A new property "' . $property->property_name . '" has been created for you.',
-            'property_created',
-            $property->id,
-            'property'
-        );
-
-        return response()->json($property, 201);
-    }
-
-    /**
      * ASSIGN TO MANAGER
      */
     public function assignToManager(Request $request, $managerId)
@@ -268,34 +169,20 @@ class PropertyController extends Controller
             'property_ids' => 'required|array'
         ]);
 
-        Property::whereIn('id', $request->property_ids)
-            ->update([
-                'manager_id' => $managerId
-            ]);
+        DB::transaction(function () use ($request, $managerId) {
 
-        $this->audit(
-            'PROPERTY_ASSIGNED_TO_MANAGER',
-            json_encode([
-                'manager_id' => $managerId,
-                'property_ids' => $request->property_ids
-            ])
-        );
+            Property::whereIn('id', $request->property_ids)
+                ->update(['manager_id' => $managerId]);
 
-        // 🔔 NOTIFICATIONS
+            $this->audit(
+                "Assigned properties (" . implode(',', $request->property_ids) . ") to manager ID: {$managerId}"
+            );
+        });
 
         $this->notifyUser(
             $managerId,
             'Property Assignment',
             'You have been assigned new property(ies).',
-            'property_assigned',
-            null,
-            'property'
-        );
-
-        $this->notifyRoles(
-            ['landlord'],
-            'Property Manager Assigned',
-            'A manager has been assigned to property(ies).',
             'property_assigned',
             null,
             'property'

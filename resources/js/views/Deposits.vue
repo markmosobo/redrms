@@ -142,6 +142,7 @@
 
                           <!-- VIEW -->
                           <a @click="viewDeposit(deposit)" class="dropdown-item">
+                            <i class="fas fa-eye me-2 text-primary"></i>
                             View
                           </a>
 
@@ -151,6 +152,7 @@
                             class="dropdown-item"
                             @click="openReceivePayment(deposit)"
                           >
+                            <i class="fas fa-hand-holding-dollar me-2 text-success"></i>
                             Receive Payment
                           </a>
 

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
 use App\Traits\NotifiesUsers;
+use App\Services\TenancyTerminationService;
 
 class TerminationRequestController extends Controller
 {
@@ -72,21 +73,25 @@ class TerminationRequestController extends Controller
     /**
      * Approve termination
      */
-    public function approve(TerminationRequest $terminationRequest)
-    {
-        DB::transaction(function () use ($terminationRequest) {
+
+    public function approve(
+        TerminationRequest $terminationRequest,
+        TenancyTerminationService $terminationService
+    ) {
+        DB::transaction(function () use ($terminationRequest, $terminationService) {
 
             $terminationRequest->update([
-                'status' => 'approved',
+                'status'       => 'approved',
                 'processed_by' => auth()->id(),
                 'processed_at' => now(),
             ]);
 
-            $terminationRequest->tenancy->update([
-                'status' => 'terminated'
-            ]);
+            // 🔥 SAME termination logic
+            $terminationService->terminate(
+                $terminationRequest->tenancy,
+                auth()->id()
+            );
 
-            // 🔔 Notify tenant
             $this->notifyUser(
                 $terminationRequest->requested_by,
                 'Termination Approved',
@@ -96,21 +101,11 @@ class TerminationRequestController extends Controller
                 'termination_requests'
             );
 
-            // 🔔 Optional: notify landlord
-            $this->notifyRoles(
-                ['landlord'],
-                'Tenancy Terminated',
-                'A tenancy under your property has been terminated.',
-                'tenancy',
-                $terminationRequest->tenancy_id,
-                'tenancies'
-            );
-
             $this->audit('TERMINATION_APPROVED', auth()->id());
         });
 
         return response()->json([
-            'message' => 'Termination approved'
+            'message' => 'Termination approved and inspection created'
         ]);
     }
 

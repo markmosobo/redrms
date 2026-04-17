@@ -89,6 +89,7 @@
 
                         <div class="dropdown-menu">
                           <a class="dropdown-item" @click="viewBreakdown(refund)">
+                            <i class="fas fa-list-ul me-2 text-primary"></i>
                             View Breakdown
                           </a>
 
@@ -97,6 +98,7 @@
                             class="dropdown-item"
                             @click="finalizeRefund(refund)"
                           >
+                            <i class="fas fa-check-circle me-2 text-success"></i>
                             Finalize Refund
                           </a>
                         </div>

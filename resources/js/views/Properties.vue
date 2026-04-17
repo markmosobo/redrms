@@ -350,11 +350,11 @@
                             </div>
 
                             <div class="col-md-3">
-                            <input
-                                v-model="unitForm.unit_type"
-                                class="form-control"
-                                placeholder="Type"
-                            >
+                            <select v-model="unitForm.unit_type" class="form-select">
+                                <option value="" disabled>Select Type</option>
+                                <option value="commercial">Commercial</option>
+                                <option value="residential">Residential</option>
+                            </select>
                             </div>
 
                             <div class="col-md-3">
@@ -513,14 +513,48 @@
             })
         },
 
-        deleteUnit(unit) {
-            if (!confirm('Delete this unit?')) return
+async deleteUnit(unit) {
+  try {
+    const result = await Swal.fire({
+      title: "Delete Unit?",
+      text: "This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Yes, delete it!",
+    });
 
-            axios.delete(`/api/units/${unit.id}`)
-            .then(() => {
-                this.units = this.units.filter(u => u.id !== unit.id)
-            })
-        },
+    if (!result.isConfirmed) return;
+
+    Swal.fire({
+      title: "Deleting...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    await axios.delete(`/api/units/${unit.id}`);
+
+    this.units = this.units.filter(u => u.id !== unit.id);
+
+    Swal.fire({
+      icon: "success",
+      title: "Deleted",
+      text: "Unit removed successfully",
+      timer: 1200,
+      showConfirmButton: false,
+    });
+
+  } catch (err) {
+    console.error(err);
+
+    Swal.fire({
+      icon: "error",
+      title: "Delete failed",
+      text: "Something went wrong while deleting the unit",
+    });
+  }
+},
 
         resetUnitForm() {
             this.unitForm = {
