@@ -12,7 +12,7 @@
               </h5>
 
               <!-- TABLE -->
-              <table class="table table-borderless">
+              <table id="ReportsTable" class="table table-borderless">
                 <thead>
                   <tr>
                     <th>Tenant</th>
@@ -221,6 +221,10 @@
 import Master from "@/components/Master.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
+import "jquery/dist/jquery.min.js";
+import "datatables.net-dt/js/dataTables.dataTables";
+import "datatables.net-dt/css/jquery.dataTables.min.css";
+import $ from "jquery";
 
 const toast = Swal.mixin({
   toast: true,
@@ -310,7 +314,9 @@ export default {
       try {
         const res = await axios.get("/api/refunds/finalized");
         this.refunds = res.data;
-
+        setTimeout(() => {
+        $("#ReportsTable").DataTable();
+        }, 10);
       } catch (e) {
         console.error(e);
         toast.fire({ icon: "error", title: "Failed to load refunds" });
