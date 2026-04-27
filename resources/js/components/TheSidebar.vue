@@ -117,29 +117,31 @@ export default {
           roles: ['admin', 'landlord', 'manager']
         },
 
+        // 🔥 NEW STRUCTURE STARTS HERE
+
         {
-          label: 'Workflow',
+          label: 'Operations',
           icon: 'bi-diagram-3',
           roles: ['admin', 'manager', 'landlord'],
           children: [
-            { label: 'Termination Requests', to: '/termination-requests' },
-            { label: 'Deposits Queue', to: '/deposits?action=queue' },
-            { label: 'Inspection Queue', to: '/inspections?status=pending' }
+            { label: 'Terminations', to: '/termination-requests' },
+            { label: 'Inspections', to: '/inspections?status=pending' }
           ]
         },
-
 
         {
           label: 'Finance & Settlements',
           icon: 'bi-cash-coin',
-          roles: ['admin', 'landlord','manager'],
+          roles: ['admin', 'landlord', 'manager'],
           children: [
             { label: 'Deposits', to: '/deposits' },
             { label: 'Deductions', to: '/deductions' },
-            { label: 'Pending Refunds', to: '/refunds' }, 
+            { label: 'Refunds', to: '/refunds' },
             { label: 'Reports', to: '/reports' }
           ]
         },
+
+        // 🔥 NEW STRUCTURE ENDS HERE
 
         {
           label: 'Audit Logs',
@@ -181,15 +183,12 @@ export default {
       return this.menuItems
         .filter(item => item.roles.includes(this.userRole))
         .map(item => {
-          // If no children, return as-is
           if (!item.children) return item;
 
-          // Filter children by role
           const filteredChildren = item.children.filter(child =>
             !child.roles || child.roles.includes(this.userRole)
           );
 
-          // Hide parent if no children left
           if (filteredChildren.length === 0) return null;
 
           return {
@@ -197,7 +196,7 @@ export default {
             children: filteredChildren
           };
         })
-        .filter(Boolean); // remove nulls
+        .filter(Boolean);
     }
   },
 
@@ -211,47 +210,8 @@ export default {
       return text
         .toLowerCase()
         .replace(/\s+/g, '-')
-        .replace(/&/g, 'and'); // IMPORTANT FIX
+        .replace(/&/g, 'and');
     }
   }
 };
 </script>
-
-<style scoped>
-.sidebar .nav-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.sidebar .nav-link i {
-  font-size: 1.1rem;
-}
-
-.sidebar .nav-link:hover {
-  background: #f4f6f9;
-  color: #0d6efd;
-}
-
-.sidebar .nav-link.active {
-  background: #0d6efd;
-  color: #fff;
-}
-
-.nav-content {
-  padding-left: 10px;
-}
-
-.nav-content .nav-link {
-  padding-left: 42px;
-  font-size: 0.95rem;
-}
-
-.nav-item .bi-chevron-down {
-  font-size: 0.75rem;
-}
-</style>
