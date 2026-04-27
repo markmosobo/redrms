@@ -8,7 +8,7 @@
             <div class="card-body pb-0">
 
               <h5 class="card-title">
-                Pending Refunds <span>| Derived from Deposits</span>
+                Reports <span>| Deductions and Refunds Derived from Deposits</span>
               </h5>
 
               <!-- TABLE -->
@@ -94,6 +94,15 @@
                           </a>
 
                           <a
+                            v-if="refund.status === 'approved'"
+                            class="dropdown-item"
+                            @click="payRefund(refund)"
+                          >
+                            <i class="fas fa-money-bill-wave me-2 text-primary"></i>
+                            Pay Refund
+                          </a>
+
+                          <a
                             v-if="refund.status === 'pending'"
                             class="dropdown-item"
                             @click="finalizeRefund(refund)"
@@ -119,20 +128,44 @@
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
+              <!-- HEADER -->
               <div class="modal-header">
                 <h5 class="modal-title">Refund Breakdown</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
 
+              <!-- BODY -->
               <div class="modal-body" v-if="selectedRefund">
 
-                <p><strong>Deposit:</strong> KES {{ selectedRefund.amount_received }}</p>
+                <!-- BASIC INFO -->
+                <p><strong>Tenant:</strong> {{ selectedRefund.tenant?.full_name }}</p>
+                <p><strong>Property:</strong> {{ selectedRefund.property?.property_name }}</p>
+                <p><strong>Unit:</strong> {{ selectedRefund.unit?.unit_number }}</p>
 
                 <hr>
 
+                <!-- TENANCY DATE -->
+                <p>
+                  <strong>Tenancy Start Date:</strong>
+                  {{ formatDate(selectedRefund.tenancy_start_date) }}
+                </p>
+
+                <p>
+                  <strong>Tenancy End Date:</strong>
+                  {{ formatDate(selectedRefund.tenancy_end_date) }}
+                </p>
+
+                <hr>
+
+                <!-- FINANCIAL BREAKDOWN -->
+                <p>
+                  <strong>Deposit Paid:</strong>
+                  KES {{ formatCurrency(selectedRefund.amount_received) }}
+                </p>
+
                 <p v-if="Number(selectedRefund.total_deductions) > 0">
-                  <strong>Deductions:</strong>
-                  KES {{ selectedRefund.total_deductions }}
+                  <strong>Total Deductions:</strong>
+                  KES {{ formatCurrency(selectedRefund.total_deductions) }}
                 </p>
 
                 <p v-else class="text-muted">
@@ -143,13 +176,36 @@
 
                 <p>
                   <strong>Refundable Amount:</strong>
-                  KES {{ selectedRefund.refundable_amount }}
+                  <span class="fw-bold text-success">
+                    KES {{ formatCurrency(selectedRefund.refundable_amount) }}
+                  </span>
+                </p>
+
+                <hr>
+
+                <!-- STATUS -->
+                <p>
+                  <strong>Status:</strong>
+                  <span 
+                    class="badge"
+                    :class="{
+                      'bg-warning': selectedRefund.status === 'pending',
+                      'bg-success': selectedRefund.status === 'approved',
+                      'bg-danger': selectedRefund.status === 'rejected',
+                      'bg-primary': selectedRefund.status === 'paid'
+                    }"
+                  >
+                    {{ selectedRefund.status }}
+                  </span>
                 </p>
 
               </div>
 
+              <!-- FOOTER -->
               <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">
+                  Close
+                </button>
               </div>
 
             </div>
@@ -185,7 +241,66 @@ export default {
   },
 
   methods: {
+    async payRefund(refund) {
 
+      // 🔒 Guard
+      if (refund.status !== 'approved') {
+        toast.fire({ icon: "info", title: "Only approved refunds can be paid" });
+        return;
+      }
+
+      const amount = Number(refund.refundable_amount).toLocaleString();
+
+      const result = await Swal.fire({
+        title: "Confirm Payment",
+        html: `
+          <p><strong>Tenant:</strong> ${refund.tenant?.full_name || "N/A"}</p>
+          <p><strong>Amount:</strong> KES ${amount}</p>
+          <p class="text-muted">Mark this refund as paid?</p>
+        `,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes, Pay",
+        confirmButtonColor: "#0d6efd",
+      });
+
+      if (!result.isConfirmed) return;
+
+      try {
+        await axios.post(`/api/refunds/${refund.refund_id}/pay`);
+
+        toast.fire({ icon: "success", title: "Refund marked as paid" });
+
+        await this.loadRefunds();
+
+      } catch (e) {
+        console.error(e);
+        Swal.fire({
+          icon: "error",
+          title: "Payment Failed",
+          text: "Could not process refund payment",
+        });
+      }
+    },    
+    formatDate(date) {
+      if (!date) return '-';
+
+      return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    },
+    formatCurrency(value) {
+      if (value === null || value === undefined) return '0.00';
+
+      return Number(value).toLocaleString('en-KE', {
+        style: 'currency',
+        currency: 'KES',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    },
     // -------------------------
     // LOAD REFUNDS
     // -------------------------
@@ -193,7 +308,7 @@ export default {
       this.loading = true;
 
       try {
-        const res = await axios.get("/api/refunds/pending");
+        const res = await axios.get("/api/refunds/finalized");
         this.refunds = res.data;
 
       } catch (e) {

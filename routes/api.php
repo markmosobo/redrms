@@ -55,7 +55,9 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::post('/deposits/{deposit}/receive', [DepositController::class, 'receive']);
     Route::get('/refunds/pending', [RefundController::class, 'refundableDeposits']); 
+    Route::get('/refunds/finalized', [RefundController::class, 'finalizedRefunds']); 
     Route::post('/refunds/{refund}/finalize', [RefundController::class, 'finalize']);
+    Route::post('/refunds/{refund}/pay', [RefundController::class, 'pay']);
     Route::apiResource('deposits', DepositController::class);
 
     Route::post('/inspections/complete', [InspectionController::class, 'completeInspection']);

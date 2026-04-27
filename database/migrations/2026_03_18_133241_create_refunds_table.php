@@ -42,7 +42,7 @@ return new class extends Migration
             $table->string('payment_reference')->nullable();
 
             $table->text('remarks')->nullable();
-
+            $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
     }

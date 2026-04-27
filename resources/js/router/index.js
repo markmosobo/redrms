@@ -17,6 +17,7 @@ import Tenants from '../views/Tenants.vue';
 import TerminationRequests from '../views/TerminationRequests.vue';
 import Notifications from '../views/Notifications.vue';
 import AllNotifications from '../views/AllNotifications.vue';
+import FinalRefunds from '../views/FinalRefunds.vue';
 
 const routes = [
   // Public routes
@@ -33,6 +34,7 @@ const routes = [
   { path: '/inspections', name: 'inspections', component: Inspections, meta: { requiresAuth: true } },
   { path: '/deductions', name: 'deductions', component: Deductions, meta: { requiresAuth: true } },
   { path: '/refunds', name: 'refunds', component: Refunds, meta: { requiresAuth: true } },
+  { path: '/reports', name: 'reports', component: FinalRefunds, meta: { requiresAuth: true } },
   { path: '/audit-logs', name: 'audit-logs', component: AuditLogs, meta: { requiresAuth: true } },
   { path: '/termination-requests', name: 'termination-requests', component: TerminationRequests, meta: { requiresAuth: true } },
   { path: '/notifications', name: 'notifications', component: Notifications, meta: { requiresAuth: true } },

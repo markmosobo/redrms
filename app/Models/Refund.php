@@ -20,6 +20,7 @@ class Refund extends Model
         'approved_at',
         'payment_reference',
         'remarks',
+        'paid_at'
     ];
 
     protected $casts = [
