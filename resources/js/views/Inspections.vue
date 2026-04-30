@@ -12,7 +12,7 @@
                 Inspections <span>| Move-in & Move-out</span>
               </h5>
 
-              <div class="row mb-3">
+              <!-- <div class="row mb-3">
                 <div class="col d-flex">
                   <button
                     class="btn btn-sm btn-primary rounded-pill"
@@ -22,7 +22,7 @@
                     Add Inspection
                   </button>
                 </div>
-              </div>
+              </div> -->
 
               <!-- Inspections Table -->
               <table id="InspectionsTable" class="table table-borderless">

@@ -49,7 +49,7 @@ axios.interceptors.response.use(
             localStorage.removeItem('token');
             localStorage.removeItem('user');
 
-            Swal.fire({
+            toast.fire({
                 title: 'Session Expired',
                 text: 'Your session has expired. Please log in again.',
                 icon: 'warning',
