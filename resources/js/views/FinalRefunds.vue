@@ -11,8 +11,18 @@
                 Reports <span>| Deductions and Refunds Derived from Deposits</span>
               </h5>
 
+              <!-- LOADING -->
+              <div v-if="loading" class="text-center py-4">
+                <div class="spinner-border text-primary"></div>
+                <div class="text-muted mt-2">Loading refunds…</div>
+              </div>
+
               <!-- TABLE -->
-              <table id="ReportsTable" class="table table-borderless">
+              <table
+                v-show="!loading"
+                id="ReportsTable"
+                class="table table-borderless"
+              >
                 <thead>
                   <tr>
                     <th>Tenant</th>
@@ -27,37 +37,13 @@
                 </thead>
 
                 <tbody>
-
-                  <!-- 🔄 LOADING STATE -->
-                  <tr v-if="loading">
-                    <td colspan="8" class="text-center py-5">
-                      <div class="spinner-border text-primary mb-2"></div>
-                      <div class="text-muted">Loading refunds…</div>
-                    </td>
-                  </tr>
-
-                  <!-- 📭 EMPTY STATE -->
-                  <tr v-else-if="refunds.length === 0">
-                    <td colspan="8" class="text-center py-5">
-                      <i class="ri-inbox-line fs-1 text-muted mb-2 d-block"></i>
-                      <div class="fw-semibold">No refunds available</div>
-                      <div class="text-muted">
-                        All refundable deposits have already been processed.
-                      </div>
-                    </td>
-                  </tr>
-
-                  <!-- 📊 DATA STATE -->
-                  <tr v-else v-for="refund in refunds" :key="refund.refund_id">
+                  <tr v-for="refund in refunds" :key="refund.refund_id">
 
                     <td>{{ refund.tenant?.full_name || 'N/A' }}</td>
-
                     <td>{{ refund.property?.property_name || 'N/A' }}</td>
-
                     <td>{{ refund.unit?.unit_number || 'N/A' }}</td>
 
                     <td>KES {{ refund.amount_received }}</td>
-
                     <td>KES {{ refund.total_deductions || 0 }}</td>
 
                     <td>
@@ -67,12 +53,7 @@
                     <td>
                       <span
                         class="badge"
-                        :class="{
-                          'bg-warning': refund.status === 'pending',
-                          'bg-success': refund.status === 'approved',
-                          'bg-danger': refund.status === 'rejected',
-                          'bg-info': refund.status === 'paid'
-                        }"
+                        :class="statusClass(refund.status)"
                       >
                         {{ refund.status }}
                       </span>
@@ -80,33 +61,25 @@
 
                     <td>
                       <div class="btn-group">
-                        <button
-                          class="btn btn-sm btn-primary dropdown-toggle"
-                          data-bs-toggle="dropdown"
-                        >
+                        <button class="btn btn-sm btn-primary dropdown-toggle" data-bs-toggle="dropdown">
                           Action
                         </button>
 
                         <div class="dropdown-menu">
+
                           <a class="dropdown-item" @click="viewBreakdown(refund)">
-                            <i class="fas fa-list-ul me-2 text-primary"></i>
                             View Breakdown
                           </a>
 
-                          <a
-                            class="dropdown-item"
-                            @click="openReceipts(refund)"
-                          >
-                            <i class="fas fa-receipt me-2 text-info"></i>
+                          <a class="dropdown-item" @click="openReceipts(refund)">
                             View Receipts
-                          </a>                          
+                          </a>
 
                           <a
                             v-if="refund.status === 'approved'"
                             class="dropdown-item"
                             @click="payRefund(refund)"
                           >
-                            <i class="fas fa-money-bill-wave me-2 text-primary"></i>
                             Pay Refund
                           </a>
 
@@ -115,120 +88,78 @@
                             class="dropdown-item"
                             @click="finalizeRefund(refund)"
                           >
-                            <i class="fas fa-check-circle me-2 text-success"></i>
                             Finalize Refund
                           </a>
+
                         </div>
                       </div>
                     </td>
 
                   </tr>
-
                 </tbody>
+
               </table>
 
             </div>
           </div>
         </div>
 
-        <!-- BREAKDOWN MODAL -->
+        <!-- MODALS (UNCHANGED UI) -->
         <div class="modal fade" id="refundBreakdownModal" tabindex="-1">
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
-              <!-- HEADER -->
               <div class="modal-header">
                 <h5 class="modal-title">Refund Breakdown</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
 
-              <!-- BODY -->
               <div class="modal-body" v-if="selectedRefund">
 
-                <!-- BASIC INFO -->
                 <p><strong>Tenant:</strong> {{ selectedRefund.tenant?.full_name }}</p>
                 <p><strong>Property:</strong> {{ selectedRefund.property?.property_name }}</p>
                 <p><strong>Unit:</strong> {{ selectedRefund.unit?.unit_number }}</p>
 
                 <hr>
 
-                <!-- TENANCY DATE -->
-                <p>
-                  <strong>Tenancy Start Date:</strong>
-                  {{ formatDate(selectedRefund.tenancy_start_date) }}
-                </p>
-
-                <p>
-                  <strong>Tenancy End Date:</strong>
-                  {{ formatDate(selectedRefund.tenancy_end_date) }}
-                </p>
-
-                <hr>
-
-                <!-- FINANCIAL BREAKDOWN -->
-                <p>
-                  <strong>Deposit Paid:</strong>
-                  KES {{ formatCurrency(selectedRefund.amount_received) }}
-                </p>
-
-                <p v-if="Number(selectedRefund.total_deductions) > 0">
-                  <strong>Total Deductions:</strong>
-                  KES {{ formatCurrency(selectedRefund.total_deductions) }}
-                </p>
-
-                <p v-else class="text-muted">
-                  No deductions recorded
-                </p>
+                <p><strong>Deposit:</strong> KES {{ selectedRefund.amount_received }}</p>
+                <p><strong>Deductions:</strong> KES {{ selectedRefund.total_deductions || 0 }}</p>
 
                 <hr>
 
                 <p>
-                  <strong>Refundable Amount:</strong>
-                  <span class="fw-bold text-success">
-                    KES {{ formatCurrency(selectedRefund.refundable_amount) }}
+                  <strong>Refundable:</strong>
+                  <span class="text-success fw-bold">
+                    KES {{ selectedRefund.refundable_amount }}
                   </span>
                 </p>
 
                 <hr>
 
-                <!-- STATUS -->
                 <p>
                   <strong>Status:</strong>
-                  <span 
-                    class="badge"
-                    :class="{
-                      'bg-warning': selectedRefund.status === 'pending',
-                      'bg-success': selectedRefund.status === 'approved',
-                      'bg-danger': selectedRefund.status === 'rejected',
-                      'bg-primary': selectedRefund.status === 'paid'
-                    }"
-                  >
+                  <span class="badge" :class="statusClass(selectedRefund.status)">
                     {{ selectedRefund.status }}
                   </span>
                 </p>
 
               </div>
 
-              <!-- FOOTER -->
               <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">
-                  Close
-                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
               </div>
 
             </div>
           </div>
         </div>
 
-        <!-- 🔥 RECEIPTS MODAL -->
+        <!-- RECEIPTS -->
         <div class="modal fade" id="receiptsModal" tabindex="-1">
           <div class="modal-dialog modal-lg">
             <div class="modal-content">
 
               <div class="modal-header">
-                <h5 class="modal-title">
-                  Deposit Receipts
-                </h5>
+                <h5 class="modal-title">Receipts</h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
 
@@ -238,52 +169,37 @@
                   <div class="spinner-border text-primary"></div>
                 </div>
 
-                <div v-else>
+                <table v-else class="table table-sm table-bordered">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Amount</th>
+                      <th>Method</th>
+                      <th>Date</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
 
-                  <div v-if="receipts.length === 0" class="text-muted text-center">
-                    No receipts found
-                  </div>
-
-                  <table v-else class="table table-sm table-bordered">
-                    <thead>
-                      <tr>
-                        <th>Receipt #</th>
-                        <th>Amount</th>
-                        <th>Method</th>
-                        <th>MPesa Code</th>
-                        <th>Date</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      <tr v-for="r in receipts" :key="r.id">
-                        <td>{{ r.receipt_number }}</td>
-                        <td>KES {{ r.amount }}</td>
-                        <td>{{ r.payment_method || '-' }}</td>
-                        <td>{{ r.mpesa_code || '-' }}</td>
-                        <td>{{ formatDate(r.issued_at) }}</td>
-
-                        <td>
-                          <button
-                            class="btn btn-sm btn-primary"
-                            @click="printReceipt(r.id)"
-                          >
-                            Print
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-
-                  </table>
-
-                </div>
+                  <tbody>
+                    <tr v-for="r in receipts" :key="r.id">
+                      <td>{{ r.receipt_number }}</td>
+                      <td>KES {{ r.amount }}</td>
+                      <td>{{ r.payment_method }}</td>
+                      <td>{{ formatDate(r.issued_at) }}</td>
+                      <td>
+                        <button class="btn btn-sm btn-primary" @click="printReceipt(r.id)">
+                          Print
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
 
               </div>
 
             </div>
           </div>
-        </div>         
+        </div>
 
       </div>
     </section>
@@ -294,17 +210,10 @@
 import Master from "@/components/Master.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
-import "jquery/dist/jquery.min.js";
-import "datatables.net-dt/js/dataTables.dataTables";
-import "datatables.net-dt/css/jquery.dataTables.min.css";
 import $ from "jquery";
+import "datatables.net-dt";
 
-const toast = Swal.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 3000,
-});
+let dt = null;
 
 export default {
   components: { Master },
@@ -314,193 +223,158 @@ export default {
       refunds: [],
       loading: false,
       selectedRefund: null,
-          receipts: [],
+
+      receipts: [],
       receiptsLoading: false,
       selectedDepositId: null,
     };
   },
 
   methods: {
-    async openReceipts(deposit) {
-      this.selectedDepositId = deposit.id;
+
+    statusClass(status) {
+      return {
+        pending: "bg-warning",
+        approved: "bg-success",
+        rejected: "bg-danger",
+        paid: "bg-info",
+      }[status] || "bg-secondary";
+    },
+
+    async loadRefunds() {
+      this.loading = true;
+
+      try {
+        const res = await axios.get("/api/refunds/finalized");
+
+        this.refunds = res.data;
+
+        await this.$nextTick();
+
+        // destroy old table safely
+        if (dt) {
+          dt.destroy();
+          dt = null;
+        }
+
+        dt = $("#ReportsTable").DataTable({
+          destroy: true,
+          pageLength: 10,
+          autoWidth: false,
+        });
+
+      } catch (e) {
+        console.error(e);
+        Swal.fire("Error", "Failed loading refunds", "error");
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async reloadRefunds() {
+      try {
+        const res = await axios.get("/api/refunds/finalized");
+
+        this.refunds = [];
+
+        await this.$nextTick();
+
+        this.refunds = res.data;
+
+        await this.$nextTick();
+
+        if (dt) {
+          dt.clear();
+          dt.destroy();
+          dt = null;
+        }
+
+        dt = $("#ReportsTable").DataTable({
+          destroy: true,
+          pageLength: 10,
+          autoWidth: false,
+        });
+
+      } catch (e) {
+        console.error(e);
+      }
+    },
+
+    async payRefund(refund) {
+
+      const result = await Swal.fire({
+        title: "Pay Refund?",
+        text: `Pay KES ${refund.refundable_amount}`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Yes Pay",
+      });
+
+      if (!result.isConfirmed) return;
+
+      try {
+        const res = await axios.post(
+          `/api/refunds/${refund.refund_id}/pay`,
+          {}
+        );
+
+        Swal.fire("Success", "Refund paid", "success");
+
+        window.open(`/receipts/${res.data.receipt_id}/print`, "_blank");
+
+        await this.reloadRefunds();
+
+      } catch (e) {
+        Swal.fire("Error", "Payment failed", "error");
+      }
+    },
+
+    async openReceipts(refund) {
+      this.selectedDepositId = refund.deposit_id;
       this.receiptsLoading = true;
 
       const modal = new bootstrap.Modal(
-        document.getElementById('receiptsModal')
+        document.getElementById("receiptsModal")
       );
 
       modal.show();
 
       try {
         const res = await axios.get(
-          `/api/deposits/${deposit.id}/receipts`
+          `/api/deposits/${refund.deposit_id}/receipts`
         );
 
         this.receipts = res.data;
 
-      } catch (e) {
-        toast.fire({
-          icon: "error",
-          title: "Failed to load receipts"
-        });
       } finally {
         this.receiptsLoading = false;
       }
     },
+
     printReceipt(id) {
       window.open(`/receipts/${id}/print`, "_blank");
-    },     
-    async payRefund(refund) {
-
-      // 🔒 Guard
-      if (refund.status !== 'approved') {
-        toast.fire({ icon: "info", title: "Only approved refunds can be paid" });
-        return;
-      }
-
-      const amount = Number(refund.refundable_amount).toLocaleString();
-
-      const result = await Swal.fire({
-        title: "Confirm Payment",
-        html: `
-          <p><strong>Tenant:</strong> ${refund.tenant?.full_name || "N/A"}</p>
-          <p><strong>Amount:</strong> KES ${amount}</p>
-          <p class="text-muted">Mark this refund as paid?</p>
-        `,
-        icon: "question",
-        showCancelButton: true,
-        confirmButtonText: "Yes, Pay",
-        confirmButtonColor: "#0d6efd",
-      });
-
-      if (!result.isConfirmed) return;
-
-      try {
-        await axios.post(`/api/refunds/${refund.refund_id}/pay`);
-
-        toast.fire({ icon: "success", title: "Refund marked as paid" });
-
-        await this.loadRefunds();
-
-      } catch (e) {
-        console.error(e);
-        Swal.fire({
-          icon: "error",
-          title: "Payment Failed",
-          text: "Could not process refund payment",
-        });
-      }
-    },    
-    formatDate(date) {
-      if (!date) return '-';
-
-      return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
-    },
-    formatCurrency(value) {
-      if (value === null || value === undefined) return '0.00';
-
-      return Number(value).toLocaleString('en-KE', {
-        style: 'currency',
-        currency: 'KES',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-    },
-    // -------------------------
-    // LOAD REFUNDS
-    // -------------------------
-    async loadRefunds() {
-      this.loading = true;
-
-      try {
-        const res = await axios.get("/api/refunds/finalized");
-        this.refunds = res.data;
-        setTimeout(() => {
-        $("#ReportsTable").DataTable();
-        }, 10);
-      } catch (e) {
-        console.error(e);
-        toast.fire({ icon: "error", title: "Failed to load refunds" });
-
-      } finally {
-        this.loading = false;
-      }
     },
 
-    // -------------------------
-    // REFUND CALC (SAFE)
-    // -------------------------
-    refundableAmount(refund) {
-      return Number(refund.amount_received) -
-             Number(refund.total_deductions || 0);
+    finalizeRefund(refund) {
+      axios.post(`/api/refunds/${refund.refund_id}/finalize`)
+        .then(() => this.reloadRefunds());
     },
 
-    // -------------------------
-    // FINALIZE REFUND
-    // -------------------------
-    async finalizeRefund(refund) {
-
-      // 🔒 Guard
-      if (refund.status !== 'pending') {
-        toast.fire({ icon: "info", title: "Refund already processed" });
-        return;
-      }
-
-      const refundable = Number(this.refundableAmount(refund)).toLocaleString();
-
-      const result = await Swal.fire({
-        title: "Finalize Refund?",
-        html: `
-          <p><strong>Tenant:</strong> ${refund.tenant?.full_name || "N/A"}</p>
-          <p><strong>Amount:</strong> KES ${refundable}</p>
-          <p class="text-muted">This action cannot be undone.</p>
-        `,
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Finalize",
-        confirmButtonColor: "#198754",
-      });
-
-      if (!result.isConfirmed) return;
-
-      try {
-        await axios.post(`/api/refunds/${refund.refund_id}/finalize`);
-
-        toast.fire({ icon: "success", title: "Refund finalized" });
-
-        // 🔥 Clean reactive refresh
-        await this.loadRefunds();
-
-      } catch (e) {
-        console.error(e);
-        Swal.fire({
-          icon: "error",
-          title: "Failed",
-          text: "Could not finalize refund",
-        });
-      }
-    },
-
-    // -------------------------
-    // MODAL
-    // -------------------------
     viewBreakdown(refund) {
       this.selectedRefund = refund;
 
-      const modal = new bootstrap.Modal(
+      new bootstrap.Modal(
         document.getElementById("refundBreakdownModal")
-      );
-
-      modal.show();
+      ).show();
     },
+
+    formatDate(date) {
+      return date ? new Date(date).toLocaleDateString() : "-";
+    }
   },
 
   mounted() {
     this.loadRefunds();
-  },
+  }
 };
 </script>

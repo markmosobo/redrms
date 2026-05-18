@@ -218,7 +218,7 @@ class InspectionController extends Controller
                         'deposit_id'    => $inspection->tenancy->deposit->id ?? null,
                         'inspection_id' => $inspection->id,
                         'description'   => $item['description'] ?? null,
-                        'amount'        => $item['amount'],
+                        'amount'        => $item['amount']  ?? 0,
                         'status'        => 'pending'
                     ]);
                 }

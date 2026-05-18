@@ -374,7 +374,7 @@
 
               <div class="modal-header">
                 <h5 class="modal-title">
-                  Deposit Receipts
+                  Receipts
                 </h5>
                 <button class="btn-close" data-bs-dismiss="modal"></button>
               </div>
@@ -397,7 +397,7 @@
                         <th>Receipt #</th>
                         <th>Amount</th>
                         <th>Method</th>
-                        <th>MPesa Code</th>
+                        <th>Payment Type</th>
                         <th>Date</th>
                         <th>Action</th>
                       </tr>
@@ -408,7 +408,7 @@
                         <td>{{ r.receipt_number }}</td>
                         <td>KES {{ r.amount }}</td>
                         <td>{{ r.payment_method || '-' }}</td>
-                        <td>{{ r.mpesa_code || '-' }}</td>
+                        <td>{{ r.type }}</td>
                         <td>{{ formatDate(r.issued_at) }}</td>
 
                         <td>

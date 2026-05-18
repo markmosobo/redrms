@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Refund;
 use Illuminate\Http\Request;
+use App\Models\Receipt;
 use App\Models\Deposit;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
@@ -91,26 +92,50 @@ class RefundController extends Controller
         );
     }    
 
-public function pay($id)
-{
-    $refund = Refund::findOrFail($id);
 
-    // 🔒 Only approved can be paid
+
+public function pay(Request $request, $id)
+{
+    $refund = Refund::with('deposit.tenancy.tenant', 'deposit.tenancy.unit')
+        ->findOrFail($id);
+
     if ($refund->status !== 'approved') {
         return response()->json([
             'message' => 'Only approved refunds can be paid'
         ], 400);
     }
 
+    // update refund
     $refund->update([
         'status' => 'paid',
-        'paid_at' => now(), // optional but recommended
+        'paid_at' => now(),
+        'payment_method' => $request->payment_method,
+        'mpesa_code' => $request->mpesa_code,
+    ]);
+
+    // create receipt
+    $receipt = Receipt::create([
+        'receipt_number' => 'RFD-' . now()->format('YmdHis') . '-' . $refund->id,
+        'deposit_id' => $refund->deposit_id,
+        'amount' => $refund->refundable_amount,
+        'payment_method' => $request->payment_method,
+        'mpesa_code' => $request->mpesa_code,
+        'type' => 'refund',
+        'issued_at' => now(),
+
+        'data' => [
+            'tenant_name' => $refund->deposit->tenancy->tenant->full_name,
+            'unit' => $refund->deposit->tenancy->unit->unit_number,
+            'property' => $refund->deposit->tenancy->unit->property->property_name ?? null,
+            'refund_id' => $refund->id,
+        ]
     ]);
 
     return response()->json([
-        'message' => 'Refund paid successfully'
+        'message' => 'Refund paid successfully',
+        'receipt_id' => $receipt->id
     ]);
-}    
+}   
 
     /**
      * Finalize a refund for a specific deposit

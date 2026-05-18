@@ -122,7 +122,16 @@
 
         <!-- HEADER -->
         <div class="header">
-            <h1>RECEIPT</h1>
+
+            <div style="font-size: 12px; color: #888; letter-spacing: 1px;">
+                Managed by
+            </div>
+
+            <div style="font-size: 18px; font-weight: 600; margin-top: 3px;">
+                REDRMS Property Management
+            </div>
+
+            <h1 style="margin-top: 10px;">RECEIPT</h1>
 
             <div class="sub">Payment Acknowledgement Slip</div>
 
@@ -134,6 +143,7 @@
             @else
                 <div class="badge payment">PAYMENT RECEIPT</div>
             @endif
+
         </div>
 
         <!-- DETAILS -->

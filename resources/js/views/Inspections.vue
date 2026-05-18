@@ -377,7 +377,7 @@ export default {
         await axios.post('/api/inspections/complete', {
           inspection_id: this.selectedInspection.id,
           damages: this.completeForm.damages,
-          deductions: this.completeForm.deductions,
+          deductions: this.completeForm.deductions || [],
           remarks: this.completeForm.remarks
         })
 

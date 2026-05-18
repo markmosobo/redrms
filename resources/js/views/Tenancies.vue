@@ -79,7 +79,7 @@
                     <td>{{ tenancy.tenant.full_name }}</td>
                     <td>{{ tenancy.unit.property.property_name }}</td>
                     <td>{{ tenancy.unit.unit_number }}</td>
-                    <td>{{ tenancy.start_date }}</td>
+                    <td>{{ formatDate(tenancy.start_date) }}</td>
                     <td>KES {{ tenancy.deposit_amount }}</td>
                     <td>
                       <span
@@ -154,7 +154,7 @@
                   </div>
                   <div class="col-md-6">
                     <strong>Start Date</strong><br>
-                    {{ selectedTenancy.start_date }}
+                    {{ formatDate(selectedTenancy.start_date) }}
                   </div>
                   <div class="col-md-6">
                     <strong>Status</strong><br>
@@ -280,6 +280,17 @@ export default {
     };
   },
   methods: {
+    formatDate(date) {
+      if (!date) return "-";
+
+      const d = new Date(date);
+
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+
+      return `${day}/${month}/${year}`;
+    },    
     async loadTenancies() {
         this.initializing = true; // Start spinner
         axios.get('/api/tenancies')

@@ -15,6 +15,7 @@ class Receipt extends Model
         'payment_method',
         'mpesa_code',
         'amount',
+        'type',
         'issued_at',
         'deposit_id',
         'data',

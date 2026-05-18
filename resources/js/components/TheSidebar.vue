@@ -136,7 +136,7 @@ export default {
           children: [
             { label: 'Deposits', to: '/deposits' },
             { label: 'Deductions', to: '/deductions' },
-            { label: 'Refunds', to: '/refunds' },
+            { label: 'Refunds (Pending)', to: '/refunds' },
             { label: 'Reports', to: '/reports' }
           ]
         },

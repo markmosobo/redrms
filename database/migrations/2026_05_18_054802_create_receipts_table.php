@@ -14,8 +14,7 @@ return new class extends Migration
         Schema::create('receipts', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('receipt_number')->unique();
-            $table->enum('type', ['deposit', 'payment', 'refund'])
-            ->default('payment');
+            $table->enum('type', ['deposit', 'payment', 'refund']);
             $table->string('payment_method')->nullable(); 
             $table->string('mpesa_code')->nullable();
             $table->decimal('amount', 10, 2);

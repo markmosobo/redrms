@@ -99,7 +99,7 @@
                             @click="finalizeRefund(refund)"
                           >
                             <i class="fas fa-check-circle me-2 text-success"></i>
-                            Finalize Refund
+                            Approve Refund
                           </a>
                         </div>
                       </div>
@@ -227,7 +227,7 @@ export default {
       const refundable = Number(this.refundableAmount(refund)).toLocaleString();
 
       const result = await Swal.fire({
-        title: "Finalize Refund?",
+        title: "Approve Refund?",
         html: `
           <p><strong>Tenant:</strong> ${refund.tenant?.full_name || "N/A"}</p>
           <p><strong>Amount:</strong> KES ${refundable}</p>
@@ -235,7 +235,7 @@ export default {
         `,
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Finalize",
+        confirmButtonText: "Approve",
         confirmButtonColor: "#198754",
       });
 
@@ -244,7 +244,7 @@ export default {
       try {
         await axios.post(`/api/refunds/${refund.refund_id}/finalize`);
 
-        toast.fire({ icon: "success", title: "Refund finalized" });
+        toast.fire({ icon: "success", title: "Refund approved" });
 
         // 🔥 Clean reactive refresh
         await this.loadRefunds();

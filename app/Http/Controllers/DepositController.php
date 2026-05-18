@@ -90,17 +90,6 @@ public function receive(Request $request, Deposit $deposit)
 
     ]);
 
-
-    // =========================
-    // 1. DETERMINE TYPE
-    // =========================
-    $type = $request->type ?? 'deposit';
-
-    // prevent nonsense (refund shouldn't increase deposit)
-    if ($type === 'refund') {
-        abort(422, 'Refunds must be processed via refund endpoint.');
-    }
-
     // =========================
     // 1. UPDATE DEPOSIT
     // =========================
@@ -127,8 +116,8 @@ public function receive(Request $request, Deposit $deposit)
         'receipt_number' =>
             'RCP-' . now()->format('YmdHis') . '-' . $deposit->id,
 
-        'type' => $type,
-        
+        'type' => 'deposit',
+
         'deposit_id' => $deposit->id,
 
         'amount' => $request->amount,
