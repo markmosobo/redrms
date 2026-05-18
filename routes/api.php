@@ -92,5 +92,10 @@ Route::middleware(['auth:api', 'force.password.change'])->group(function () {
 
     Route::post('/termination-requests/{terminationRequest}/approve', [TerminationRequestController::class, 'approve']);
     Route::post('/termination-requests/{terminationRequest}/reject', [TerminationRequestController::class, 'reject']);    
-    
+  
+    Route::get('/deposits/{deposit}/receipts', function ($depositId) {
+        return \App\Models\Receipt::where('deposit_id', $depositId)
+            ->latest()
+            ->get();
+    });    
 });

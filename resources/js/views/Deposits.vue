@@ -146,6 +146,15 @@
                             View
                           </a>
 
+                          <!-- VIEW RECEIPTS -->
+                          <a
+                            class="dropdown-item"
+                            @click="openReceipts(deposit)"
+                          >
+                            <i class="fas fa-receipt me-2 text-info"></i>
+                            View Receipts
+                          </a>
+
                           <!-- RECEIVE PAYMENT -->
                           <a
                             v-if="deposit.amount_received < deposit.required_amount"
@@ -284,29 +293,144 @@
           </div>
         </div>
 
-      <div class="modal fade" id="receivePaymentModal">
-        <div class="modal-dialog">
-          <div class="modal-content">
+        <!-- 🔥 RECEIVE PAYMENT + RECEIPT MODAL -->
+        <div class="modal fade" id="receivePaymentModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
 
-            <div class="modal-header">
-              <h5 class="modal-title">Receive Payment</h5>
+              <!-- HEADER -->
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  Receive Payment & Issue Receipt
+                </h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <!-- BODY -->
+              <div class="modal-body">
+
+                <!-- Amount -->
+                <div class="mb-3">
+                  <label class="form-label">Amount Received</label>
+                  <input
+                    type="number"
+                    v-model="payment.amount"
+                    class="form-control"
+                  />
+                </div>
+
+                <!-- Payment Method -->
+                <div class="mb-3">
+                  <label class="form-label">Payment Method</label>
+                  <select v-model="payment.payment_method" class="form-control">
+                    <option value="">Select Method</option>
+                    <option value="cash">Cash</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="bank">Bank Transfer</option>
+                  </select>
+                </div>
+
+                <!-- MPESA CODE (conditional) -->
+                <div class="mb-3" v-if="payment.payment_method === 'mpesa'">
+                  <label class="form-label">M-Pesa Code (optional)</label>
+                  <input
+                    type="text"
+                    v-model="payment.mpesa_code"
+                    class="form-control"
+                    placeholder="e.g. QWE123XYZ"
+                  />
+                </div>
+
+                <!-- Notes -->
+                <div class="mb-3">
+                  <label class="form-label">Notes (optional)</label>
+                  <textarea
+                    v-model="payment.notes"
+                    class="form-control"
+                  ></textarea>
+                </div>
+
+              </div>
+
+              <!-- FOOTER -->
+              <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">
+                  Cancel
+                </button>
+
+                <button class="btn btn-success" @click="submitPayment">
+                  Confirm & Print Receipt
+                </button>
+              </div>
+
             </div>
-
-            <div class="modal-body">
-
-              <input type="number" v-model="payment.amount" class="form-control" placeholder="Amount received">
-
-            </div>
-
-            <div class="modal-footer">
-              <button class="btn btn-success" @click="submitPayment">
-                Confirm Payment
-              </button>
-            </div>
-
           </div>
-        </div>
-      </div>        
+        </div> 
+        
+        <!-- 🔥 RECEIPTS MODAL -->
+        <div class="modal fade" id="receiptsModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  Deposit Receipts
+                </h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <div class="modal-body">
+
+                <div v-if="receiptsLoading" class="text-center">
+                  <div class="spinner-border text-primary"></div>
+                </div>
+
+                <div v-else>
+
+                  <div v-if="receipts.length === 0" class="text-muted text-center">
+                    No receipts found
+                  </div>
+
+                  <table v-else class="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Receipt #</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>MPesa Code</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr v-for="r in receipts" :key="r.id">
+                        <td>{{ r.receipt_number }}</td>
+                        <td>KES {{ r.amount }}</td>
+                        <td>{{ r.payment_method || '-' }}</td>
+                        <td>{{ r.mpesa_code || '-' }}</td>
+                        <td>{{ formatDate(r.issued_at) }}</td>
+
+                        <td>
+                          <button
+                            class="btn btn-sm btn-primary"
+                            @click="printReceipt(r.id)"
+                          >
+                            Print
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>        
 
       </div>
     </section>
@@ -343,14 +467,22 @@ export default {
         tenancy_id: "",
         amount_received: "",
         received_date: "",
-      }
+      },
+      receipts: [],
+      receiptsLoading: false,
+      selectedDepositId: null,
     };
   },
 
   methods: {
     openReceivePayment(deposit) {
       this.payment.deposit_id = deposit.id;
-      this.payment.amount = deposit.id;
+      this.payment.amount =
+      deposit.required_amount - deposit.amount_received;
+
+      this.payment.payment_method = "";
+      this.payment.mpesa_code = "";
+      this.payment.notes = "";
 
       const modal = new bootstrap.Modal(
         document.getElementById('receivePaymentModal')
@@ -359,17 +491,62 @@ export default {
     },
 
     async submitPayment() {
-      await axios.post(`/api/deposits/${this.payment.deposit_id}/receive`, {
-        amount: this.payment.amount
-      });
+      const res = await axios.post(
+        `/api/deposits/${this.payment.deposit_id}/receive`,
+        {
+          amount: this.payment.amount,
+          payment_method: this.payment.payment_method,
+          mpesa_code: this.payment.mpesa_code,
+          notes: this.payment.notes,
+        }
+      );
 
-      toast.fire({ icon: "success", title: "Payment received" });
+      toast.fire({
+        icon: "success",
+        title: "Payment received & receipt generated"
+      });
 
       bootstrap.Modal.getInstance(
         document.getElementById('receivePaymentModal')
       ).hide();
 
       this.loadDeposits();
+
+      // 🔥 OPEN PRINT RECEIPT
+      window.open(
+        `/receipts/${res.data.receipt_id}/print`,
+        "_blank"
+      );
+    },  
+    
+    async openReceipts(deposit) {
+      this.selectedDepositId = deposit.id;
+      this.receiptsLoading = true;
+
+      const modal = new bootstrap.Modal(
+        document.getElementById('receiptsModal')
+      );
+
+      modal.show();
+
+      try {
+        const res = await axios.get(
+          `/api/deposits/${deposit.id}/receipts`
+        );
+
+        this.receipts = res.data;
+
+      } catch (e) {
+        toast.fire({
+          icon: "error",
+          title: "Failed to load receipts"
+        });
+      } finally {
+        this.receiptsLoading = false;
+      }
+    },
+    printReceipt(id) {
+      window.open(`/receipts/${id}/print`, "_blank");
     },    
     // LOAD DEPOSITS
     async loadDeposits() {

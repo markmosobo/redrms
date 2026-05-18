@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Tenancy;
 use App\Models\Deduction;
 use App\Models\Refund;
+use App\Models\Receipt;
 
 class Deposit extends Model
 {
@@ -43,6 +44,11 @@ class Deposit extends Model
         return $this->hasMany(Refund::class);
     }
 
+
+    public function receipts()
+    {
+        return $this->hasMany(Receipt::class);
+    }
     // 🧠 Helper: calculate remaining balance dynamically
     public function getTotalDeductionsAttribute()
     {

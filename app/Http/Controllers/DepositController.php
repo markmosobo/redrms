@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Deposit;
 use App\Models\Tenancy;
 use App\Models\Refund;
+use App\Models\Receipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Traits\Auditable;
@@ -78,57 +79,103 @@ class DepositController extends Controller
     /**
      * RECEIVE PAYMENT (IMPORTANT FLOW)
      */
-    public function receive(Request $request, Deposit $deposit)
-    {
-        $request->validate([
-            'amount' => 'required|numeric|min:1'
-        ]);
+public function receive(Request $request, Deposit $deposit)
+{
+    $request->validate([
+        'amount' => 'required|numeric|min:1',
+        'payment_method' => 'nullable|string',
+        'mpesa_code' => 'nullable|string',
+        'notes' => 'nullable|string'
+    ]);
 
-        $deposit->amount_received += $request->amount;
-        $deposit->received_date = now();
+    // =========================
+    // 1. UPDATE DEPOSIT
+    // =========================
+    $deposit->amount_received += $request->amount;
+    $deposit->received_date = now();
 
-        $deposit->current_balance =
-            max(0, $deposit->required_amount - $deposit->amount_received);
+    $deposit->current_balance =
+        max(0, $deposit->required_amount - $deposit->amount_received);
 
-        $deposit->status =
-            $deposit->amount_received >= $deposit->required_amount
-                ? 'held'
-                : 'active';
+    $deposit->status =
+        $deposit->amount_received >= $deposit->required_amount
+            ? 'held'
+            : 'active';
 
-        $deposit->save();
+    $deposit->save();
 
-        $this->audit('DEPOSIT_PAYMENT_RECEIVED', auth()->id());
+    // reload relationships for notifications
+    $deposit->load('tenancy.unit', 'tenancy.tenant');
 
-        $deposit->load('tenancy.unit');
+    // =========================
+    // 2. CREATE RECEIPT 🔥 NEW PART
+    // =========================
+    $receipt = Receipt::create([
+        'receipt_number' =>
+            'RCP-' . now()->format('YmdHis') . '-' . $deposit->id,
 
-        // 🔔 TENANT NOTIFICATION
-        $this->notifyUser(
-            $deposit->tenancy->tenant_id,
-            'Deposit Payment Received',
-            'KES ' . $request->amount .
-            ' received for Unit ' . $deposit->tenancy->unit->unit_number .
-            '. Balance: KES ' . $deposit->current_balance,
-            'deposit_payment',
-            $deposit->id,
-            'deposit'
-        );
+        'deposit_id' => $deposit->id,
 
-        // 🔔 MANAGERS
-        $this->notifyRoles(
-            ['manager'],
-            'Deposit Payment Update',
-            'Payment received for Unit ' . $deposit->tenancy->unit->unit_number .
-            ' (KES ' . $request->amount . ')',
-            'deposit_payment',
-            $deposit->id,
-            'deposit'
-        );
+        'amount' => $request->amount,
 
-        return response()->json([
-            'message' => 'Deposit updated successfully',
-            'data'    => $deposit
-        ]);
-    }
+        'payment_method' => $request->payment_method,
+
+        'mpesa_code' => $request->mpesa_code,
+
+        'issued_at' => now(),
+
+        'data' => [
+            'tenant_name' => $deposit->tenancy->tenant->full_name,
+            'unit' => $deposit->tenancy->unit->unit_number,
+            'property' => $deposit->tenancy->unit->property->property_name ?? null,
+
+            'balance' => $deposit->current_balance,
+            'required_amount' => $deposit->required_amount,
+            'total_received' => $deposit->amount_received,
+            'paid_on' => now()->format('d M Y'),
+            'cashier' => auth()->user()->name ?? 'System',
+        ]
+    ]);
+
+    // =========================
+    // 3. AUDIT LOG
+    // =========================
+    $this->audit('DEPOSIT_PAYMENT_RECEIVED', auth()->id());
+
+    // =========================
+    // 4. NOTIFICATIONS
+    // =========================
+    $this->notifyUser(
+        $deposit->tenancy->tenant_id,
+        'Deposit Payment Received',
+        'KES ' . $request->amount .
+        ' received for Unit ' . $deposit->tenancy->unit->unit_number .
+        '. Balance: KES ' . $deposit->current_balance,
+        'deposit_payment',
+        $deposit->id,
+        'deposit'
+    );
+
+    $this->notifyRoles(
+        ['manager'],
+        'Deposit Payment Update',
+        'Payment received for Unit ' . $deposit->tenancy->unit->unit_number .
+        ' (KES ' . $request->amount . ')',
+        'deposit_payment',
+        $deposit->id,
+        'deposit'
+    );
+
+    // =========================
+    // 5. RESPONSE (IMPORTANT)
+    // =========================
+    return response()->json([
+        'message' => 'Deposit updated & receipt generated successfully',
+        'receipt_id' => $receipt->id,
+        'receipt_number' => $receipt->receipt_number,
+        'deposit' => $deposit
+    ]);
+}
 
     /**
      * FINALIZE DEPOSIT
