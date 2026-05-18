@@ -94,6 +94,14 @@
                           </a>
 
                           <a
+                            class="dropdown-item"
+                            @click="openReceipts(refund)"
+                          >
+                            <i class="fas fa-receipt me-2 text-info"></i>
+                            View Receipts
+                          </a>                          
+
+                          <a
                             v-if="refund.status === 'approved'"
                             class="dropdown-item"
                             @click="payRefund(refund)"
@@ -212,6 +220,71 @@
           </div>
         </div>
 
+        <!-- 🔥 RECEIPTS MODAL -->
+        <div class="modal fade" id="receiptsModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  Deposit Receipts
+                </h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+
+              <div class="modal-body">
+
+                <div v-if="receiptsLoading" class="text-center">
+                  <div class="spinner-border text-primary"></div>
+                </div>
+
+                <div v-else>
+
+                  <div v-if="receipts.length === 0" class="text-muted text-center">
+                    No receipts found
+                  </div>
+
+                  <table v-else class="table table-sm table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Receipt #</th>
+                        <th>Amount</th>
+                        <th>Method</th>
+                        <th>MPesa Code</th>
+                        <th>Date</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr v-for="r in receipts" :key="r.id">
+                        <td>{{ r.receipt_number }}</td>
+                        <td>KES {{ r.amount }}</td>
+                        <td>{{ r.payment_method || '-' }}</td>
+                        <td>{{ r.mpesa_code || '-' }}</td>
+                        <td>{{ formatDate(r.issued_at) }}</td>
+
+                        <td>
+                          <button
+                            class="btn btn-sm btn-primary"
+                            @click="printReceipt(r.id)"
+                          >
+                            Print
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>         
+
       </div>
     </section>
   </Master>
@@ -241,10 +314,42 @@ export default {
       refunds: [],
       loading: false,
       selectedRefund: null,
+          receipts: [],
+      receiptsLoading: false,
+      selectedDepositId: null,
     };
   },
 
   methods: {
+    async openReceipts(deposit) {
+      this.selectedDepositId = deposit.id;
+      this.receiptsLoading = true;
+
+      const modal = new bootstrap.Modal(
+        document.getElementById('receiptsModal')
+      );
+
+      modal.show();
+
+      try {
+        const res = await axios.get(
+          `/api/deposits/${deposit.id}/receipts`
+        );
+
+        this.receipts = res.data;
+
+      } catch (e) {
+        toast.fire({
+          icon: "error",
+          title: "Failed to load receipts"
+        });
+      } finally {
+        this.receiptsLoading = false;
+      }
+    },
+    printReceipt(id) {
+      window.open(`/receipts/${id}/print`, "_blank");
+    },     
     async payRefund(refund) {
 
       // 🔒 Guard

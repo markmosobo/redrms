@@ -40,6 +40,31 @@
         .sub {
             font-size: 12px;
             color: #777;
+            margin-top: 5px;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 5px 12px;
+            font-size: 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge.refund {
+            background: #ffe5e5;
+            color: #c62828;
+        }
+
+        .badge.deposit {
+            background: #e6f4ea;
+            color: #2e7d32;
+        }
+
+        .badge.payment {
+            background: #e8f0fe;
+            color: #1a73e8;
         }
 
         .row {
@@ -95,11 +120,23 @@
 <div class="receipt-wrapper">
     <div class="receipt-box">
 
+        <!-- HEADER -->
         <div class="header">
             <h1>RECEIPT</h1>
+
             <div class="sub">Payment Acknowledgement Slip</div>
+
+            <!-- TYPE BADGE -->
+            @if($receipt->type === 'refund')
+                <div class="badge refund">REFUND RECEIPT</div>
+            @elseif($receipt->type === 'deposit')
+                <div class="badge deposit">DEPOSIT RECEIPT</div>
+            @else
+                <div class="badge payment">PAYMENT RECEIPT</div>
+            @endif
         </div>
 
+        <!-- DETAILS -->
         <div class="row">
             <div class="label">Receipt No</div>
             <div class="value">{{ $receipt->receipt_number }}</div>
@@ -128,13 +165,17 @@
         @endif
 
         <div class="row total">
-            <div class="label">Amount Paid</div>
-            <div class="value highlight">KES {{ number_format($receipt->amount, 2) }}</div>
+            <div class="label">Amount</div>
+            <div class="value highlight">
+                KES {{ number_format($receipt->amount, 2) }}
+            </div>
         </div>
 
         <div class="row">
             <div class="label">Balance</div>
-            <div class="value">KES {{ number_format($receipt->data['balance'] ?? 0, 2) }}</div>
+            <div class="value">
+                KES {{ number_format($receipt->data['balance'] ?? 0, 2) }}
+            </div>
         </div>
 
         <div class="row">
@@ -144,8 +185,9 @@
             </div>
         </div>
 
+        <!-- FOOTER -->
         <div class="footer">
-            Thank you for your payment.
+            Thank you for your transaction.
         </div>
 
     </div>
